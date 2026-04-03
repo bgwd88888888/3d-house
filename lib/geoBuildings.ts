@@ -1,256 +1,504 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-const EARTH_RADIUS = 6371000;
-const DEFAULT_HEIGHT_M = 12;
-const DEFAULT_LEVEL_HEIGHT_M = 3;
+const FOUNDATION_HEIGHT = 0.42;
+const ROOF_BASE_GAP = 0.02;
+const ROOF_OVERHANG = 0.42;
 
-type LonLat = [number, number];
+export type BuildStage = "base" | "roof" | "door" | "windows" | "details";
 
-export type GeoJSONFeatureCollection = {
-  type: "FeatureCollection";
-  features: GeoJSONFeature[];
+export type CityLayers = {
+  foundations: THREE.BufferGeometry | null;
+  walls: THREE.BufferGeometry | null;
+  roofs: THREE.BufferGeometry | null;
+  woodwork: THREE.BufferGeometry | null;
+  glass: THREE.BufferGeometry | null;
+  steps: THREE.BufferGeometry | null;
 };
 
-type GeoJSONFeature = {
-  type: "Feature";
-  properties: Record<string, unknown> | null;
-  geometry: GeoJSONPolygon | GeoJSONMultiPolygon;
+export type HouseSpec = {
+  width: number;
+  depth: number;
+  wallHeight: number;
+  roofHeight: number;
+  roofOverhang: number;
+  foundationHeight: number;
+  door: {
+    width: number;
+    height: number;
+    depth: number;
+    offsetX: number;
+  };
+  windows: {
+    width: number;
+    height: number;
+    frameDepth: number;
+    sillHeight: number;
+    front: number[];
+    left: number[];
+    right: number[];
+    atticOffsetX: number;
+    atticSillHeight: number;
+  };
+  chimney: {
+    width: number;
+    depth: number;
+    height: number;
+    x: number;
+    z: number;
+  };
+  steps: {
+    upperWidth: number;
+    upperDepth: number;
+    upperHeight: number;
+    lowerWidth: number;
+    lowerDepth: number;
+    lowerHeight: number;
+  };
 };
 
-type GeoJSONPolygon = {
-  type: "Polygon";
-  coordinates: LonLat[][];
+type LayerParts = {
+  foundations: THREE.BufferGeometry[];
+  walls: THREE.BufferGeometry[];
+  roofs: THREE.BufferGeometry[];
+  woodwork: THREE.BufferGeometry[];
+  glass: THREE.BufferGeometry[];
+  steps: THREE.BufferGeometry[];
 };
 
-type GeoJSONMultiPolygon = {
-  type: "MultiPolygon";
-  coordinates: LonLat[][][];
+export const BUILD_STAGES: BuildStage[] = [
+  "base",
+  "roof",
+  "door",
+  "windows",
+  "details",
+];
+
+export const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
+  base: "1. 长方体",
+  roof: "2. 屋顶",
+  door: "3. 门",
+  windows: "4. 窗户",
+  details: "5. 细节",
 };
 
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180;
+export const DEFAULT_HOUSE_SPEC: HouseSpec = {
+  width: 11.6,
+  depth: 8.8,
+  wallHeight: 6.2,
+  roofHeight: 3.8,
+  roofOverhang: ROOF_OVERHANG,
+  foundationHeight: FOUNDATION_HEIGHT,
+  door: {
+    width: 1.72,
+    height: 3.05,
+    depth: 0.2,
+    offsetX: 2.25,
+  },
+  windows: {
+    width: 1.65,
+    height: 2.15,
+    frameDepth: 0.16,
+    sillHeight: 1.55,
+    front: [-2.55],
+    left: [-1.75, 2.05],
+    right: [-1.5],
+    atticOffsetX: -2.4,
+    atticSillHeight: 4.25,
+  },
+  chimney: {
+    width: 0.82,
+    depth: 0.82,
+    height: 3.35,
+    x: 2.35,
+    z: -1.1,
+  },
+  steps: {
+    upperWidth: 2.25,
+    upperDepth: 0.95,
+    upperHeight: 0.24,
+    lowerWidth: 3.2,
+    lowerDepth: 1.65,
+    lowerHeight: 0.16,
+  },
+};
+
+function emptyLayers(): LayerParts {
+  return {
+    foundations: [],
+    walls: [],
+    roofs: [],
+    woodwork: [],
+    glass: [],
+    steps: [],
+  };
 }
 
-/** Local tangent plane: X east, Z north. Shape 2D uses (x, z) before extrusion rotation. */
-export function projectToXZ(
-  lon: number,
-  lat: number,
-  centerLon: number,
-  centerLat: number,
-): { x: number; z: number } {
-  const cosLat = Math.cos(toRad(centerLat));
-  const x = toRad(lon - centerLon) * EARTH_RADIUS * cosLat;
-  const z = toRad(lat - centerLat) * EARTH_RADIUS;
-  return { x, z };
+function makeBox(
+  width: number,
+  height: number,
+  depth: number,
+  center: THREE.Vector3,
+): THREE.BufferGeometry {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  geometry.translate(center.x, center.y, center.z);
+  return geometry;
 }
 
-export function getBuildingHeight(properties: Record<string, unknown> | null): number {
-  if (!properties) return DEFAULT_HEIGHT_M;
-
-  const raw = properties.height ?? properties["height"];
-  if (typeof raw === "number" && raw > 0) return raw;
-  if (typeof raw === "string") {
-    const n = parseFloat(raw);
-    if (!Number.isNaN(n) && n > 0) return n;
-  }
-
-  const levels = properties["building:levels"] ?? properties["building_levels"];
-  if (typeof levels === "number" && levels > 0) return levels * DEFAULT_LEVEL_HEIGHT_M;
-  if (typeof levels === "string") {
-    const n = parseFloat(levels);
-    if (!Number.isNaN(n) && n > 0) return n * DEFAULT_LEVEL_HEIGHT_M;
-  }
-
-  return DEFAULT_HEIGHT_M;
-}
-
-function ringToShapePoints(
-  ring: LonLat[],
-  centerLon: number,
-  centerLat: number,
-): THREE.Vector2[] {
-  const pts: THREE.Vector2[] = [];
-  const n = ring.length;
-  const lastIdx =
-    n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? n - 1 : n;
-  for (let i = 0; i < lastIdx; i++) {
-    const { x, z } = projectToXZ(ring[i][0], ring[i][1], centerLon, centerLat);
-    pts.push(new THREE.Vector2(x, z));
-  }
-  return pts;
-}
-
-function buildShapeFromRings(
-  rings: LonLat[][],
-  centerLon: number,
-  centerLat: number,
-): THREE.Shape | null {
-  if (rings.length === 0) return null;
-  const outerPts = ringToShapePoints(rings[0], centerLon, centerLat);
-  if (outerPts.length < 3) return null;
-
-  const shape = new THREE.Shape();
-  shape.moveTo(outerPts[0].x, outerPts[0].y);
-  for (let i = 1; i < outerPts.length; i++) {
-    shape.lineTo(outerPts[i].x, outerPts[i].y);
-  }
-
-  for (let r = 1; r < rings.length; r++) {
-    const holePts = ringToShapePoints(rings[r], centerLon, centerLat);
-    if (holePts.length < 3) continue;
-    const hole = new THREE.Path();
-    hole.moveTo(holePts[0].x, holePts[0].y);
-    for (let i = 1; i < holePts.length; i++) {
-      hole.lineTo(holePts[i].x, holePts[i].y);
-    }
-    shape.holes.push(hole);
-  }
-
-  return shape;
-}
-
-function applyVertexColors(geometry: THREE.BufferGeometry, color: THREE.Color): void {
-  const pos = geometry.getAttribute("position");
-  if (!pos) return;
-  const count = pos.count;
-  const colors = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    colors[i * 3] = color.r;
-    colors[i * 3 + 1] = color.g;
-    colors[i * 3 + 2] = color.b;
-  }
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-}
-
-function heightToColor(height: number, minH: number, maxH: number): THREE.Color {
-  const t = maxH > minH ? (height - minH) / (maxH - minH) : 0;
-  const c = new THREE.Color();
-  c.setHSL(0.58 - t * 0.42, 0.65, 0.48);
-  return c;
-}
-
-function computeCollectionCenter(geojson: GeoJSONFeatureCollection): { lon: number; lat: number } {
-  let sumLon = 0;
-  let sumLat = 0;
-  let count = 0;
-
-  const addRing = (ring: LonLat[]) => {
-    const n = ring.length;
-    const lastIdx =
-      n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? n - 1 : n;
-    for (let i = 0; i < lastIdx; i++) {
-      sumLon += ring[i][0];
-      sumLat += ring[i][1];
-      count += 1;
-    }
+function makeWindowFrame(
+  width: number,
+  height: number,
+  depth: number,
+  center: THREE.Vector3,
+  rotationY = 0,
+): THREE.BufferGeometry[] {
+  const parts: THREE.BufferGeometry[] = [];
+  const side = 0.13;
+  const rail = 0.12;
+  const sillDepth = depth + 0.08;
+  const place = (
+    geometry: THREE.BufferGeometry,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+  ) => {
+    geometry.translate(offsetX, offsetY, offsetZ);
+    if (rotationY !== 0) geometry.rotateY(rotationY);
+    geometry.translate(center.x, center.y, center.z);
+    return geometry;
   };
 
-  for (const f of geojson.features) {
-    const g = f.geometry;
-    if (g.type === "Polygon") {
-      const outer = g.coordinates[0];
-      if (outer) addRing(outer);
-    } else if (g.type === "MultiPolygon") {
-      for (const polygon of g.coordinates) {
-        const outer = polygon[0];
-        if (outer) addRing(outer);
-      }
-    }
-  }
-
-  if (count === 0) return { lon: 0, lat: 0 };
-  return { lon: sumLon / count, lat: sumLat / count };
+  parts.push(place(new THREE.BoxGeometry(side, height, depth), -(width - side) * 0.5, 0, 0));
+  parts.push(place(new THREE.BoxGeometry(side, height, depth), (width - side) * 0.5, 0, 0));
+  parts.push(place(new THREE.BoxGeometry(width, rail, depth), 0, (height - rail) * 0.5, 0));
+  parts.push(place(new THREE.BoxGeometry(width, rail, depth), 0, -(height - rail) * 0.5, 0));
+  parts.push(place(new THREE.BoxGeometry(side, height * 0.9, depth * 0.8), 0, 0, 0));
+  parts.push(place(new THREE.BoxGeometry(width * 0.72, rail, depth * 0.8), 0, height * 0.08, 0));
+  parts.push(
+    place(
+      new THREE.BoxGeometry(width * 1.04, 0.1, sillDepth),
+      0,
+      -(height * 0.5) - 0.12,
+      depth * 0.12,
+    ),
+  );
+  return parts;
 }
 
-function extrudeBuildingGeometry(
-  shape: THREE.Shape,
+function makeGlassPane(
+  width: number,
   height: number,
-  color: THREE.Color,
-): THREE.BufferGeometry | null {
-  if (height <= 0) return null;
-  const geom = new THREE.ExtrudeGeometry(shape, {
-    depth: height,
-    bevelEnabled: false,
-    curveSegments: 1,
-  });
-  geom.rotateX(-Math.PI / 2);
-  geom.computeVertexNormals();
-  applyVertexColors(geom, color);
-  return geom;
+  depth: number,
+  center: THREE.Vector3,
+  rotationY = 0,
+): THREE.BufferGeometry {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  if (rotationY !== 0) geometry.rotateY(rotationY);
+  geometry.translate(center.x, center.y, center.z);
+  return geometry;
 }
 
-/**
- * Build a single merged BufferGeometry (vertex colors) from a GeoJSON FeatureCollection.
- */
-export function buildCityGeometryFromGeoJSON(
-  geojson: GeoJSONFeatureCollection,
-): THREE.BufferGeometry | null {
-  if (!geojson.features?.length) return null;
+function makeGableRoof(spec: HouseSpec): THREE.BufferGeometry {
+  const halfW = spec.width * 0.5;
+  const halfD = spec.depth * 0.5;
+  const roofW = halfW + spec.roofOverhang;
+  const roofD = halfD + spec.roofOverhang;
+  const baseY = spec.wallHeight + ROOF_BASE_GAP;
+  const peakY = spec.wallHeight + spec.roofHeight;
 
-  const center = computeCollectionCenter(geojson);
-  const heights = geojson.features.map((f) => getBuildingHeight(f.properties));
-  const minH = Math.min(...heights);
-  const maxH = Math.max(...heights);
+  const vertices = [
+    -roofW, baseY, -roofD,
+    roofW, baseY, -roofD,
+    roofW, baseY, roofD,
+    -roofW, baseY, roofD,
+    0, peakY, -roofD,
+    0, peakY, roofD,
+  ];
+  const indices = [
+    0, 1, 4,
+    3, 5, 2,
+    1, 2, 5,
+    1, 5, 4,
+    3, 0, 4,
+    3, 4, 5,
+  ];
 
-  const parts: THREE.BufferGeometry[] = [];
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
 
-  for (let i = 0; i < geojson.features.length; i++) {
-    const f = geojson.features[i];
-    const height = heights[i];
-    const color = heightToColor(height, minH, maxH);
-    const g = f.geometry;
+function frontY(width: number, depth: number): number {
+  void width;
+  return depth * 0.5;
+}
 
-    if (g.type === "Polygon") {
-      const shape = buildShapeFromRings(g.coordinates, center.lon, center.lat);
-      if (shape) {
-        const ex = extrudeBuildingGeometry(shape, height, color);
-        if (ex) parts.push(ex);
-      }
-    } else if (g.type === "MultiPolygon") {
-      for (const polygon of g.coordinates) {
-        const shape = buildShapeFromRings(polygon, center.lon, center.lat);
-        if (shape) {
-          const ex = extrudeBuildingGeometry(shape, height, color);
-          if (ex) parts.push(ex);
-        }
-      }
-    }
+function addBaseStage(layers: LayerParts, spec: HouseSpec): void {
+  layers.foundations.push(
+    makeBox(
+      spec.width + 0.3,
+      spec.foundationHeight,
+      spec.depth + 0.3,
+      new THREE.Vector3(0, -spec.foundationHeight * 0.5, 0),
+    ),
+  );
+  layers.walls.push(
+    makeBox(
+      spec.width,
+      spec.wallHeight,
+      spec.depth,
+      new THREE.Vector3(0, spec.wallHeight * 0.5, 0),
+    ),
+  );
+}
+
+function addRoofStage(layers: LayerParts, spec: HouseSpec): void {
+  layers.roofs.push(makeGableRoof(spec));
+}
+
+function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
+  const z = frontY(spec.width, spec.depth);
+  const center = new THREE.Vector3(
+    spec.door.offsetX,
+    spec.door.height * 0.5,
+    z + spec.door.depth * 0.5 + 0.03,
+  );
+
+  layers.woodwork.push(
+    makeBox(spec.door.width, spec.door.height, spec.door.depth, center),
+  );
+  layers.woodwork.push(
+    makeBox(
+      spec.door.width + 0.28,
+      spec.door.height + 0.24,
+      0.12,
+      center.clone().add(new THREE.Vector3(0, 0.05, -0.04)),
+    ),
+  );
+  layers.woodwork.push(
+    makeBox(
+      0.12,
+      0.12,
+      0.08,
+      center.clone().add(new THREE.Vector3(spec.door.width * 0.28, -0.12, -0.08)),
+    ),
+  );
+}
+
+function addFrontWindow(layers: LayerParts, spec: HouseSpec, x: number): void {
+  const z = frontY(spec.width, spec.depth);
+  const frameCenter = new THREE.Vector3(
+    x,
+    spec.windows.sillHeight + spec.windows.height * 0.5,
+    z + spec.windows.frameDepth * 0.5 + 0.02,
+  );
+
+  for (const part of makeWindowFrame(
+    spec.windows.width,
+    spec.windows.height,
+    spec.windows.frameDepth,
+    frameCenter,
+  )) {
+    layers.woodwork.push(part);
   }
 
+  layers.glass.push(
+    makeGlassPane(
+      spec.windows.width * 0.76,
+      spec.windows.height * 0.82,
+      0.04,
+      frameCenter.clone().add(new THREE.Vector3(0, 0, -0.08)),
+    ),
+  );
+}
+
+function addSideWindow(
+  layers: LayerParts,
+  spec: HouseSpec,
+  side: "left" | "right",
+  z: number,
+): void {
+  const x = side === "left" ? -spec.width * 0.5 : spec.width * 0.5;
+  const dir = side === "left" ? -1 : 1;
+  const rotationY = Math.PI * 0.5;
+  const frameCenter = new THREE.Vector3(
+    x + dir * (spec.windows.frameDepth * 0.5 + 0.02),
+    spec.windows.sillHeight + spec.windows.height * 0.5,
+    z,
+  );
+
+  for (const part of makeWindowFrame(
+    spec.windows.width,
+    spec.windows.height,
+    spec.windows.frameDepth,
+    frameCenter,
+    rotationY,
+  )) {
+    layers.woodwork.push(part);
+  }
+
+  layers.glass.push(
+    makeGlassPane(
+      spec.windows.width * 0.76,
+      spec.windows.height * 0.82,
+      0.04,
+      frameCenter.clone().add(new THREE.Vector3(dir * -0.08, 0, 0)),
+      rotationY,
+    ),
+  );
+}
+
+function addAtticWindow(layers: LayerParts, spec: HouseSpec): void {
+  const center = new THREE.Vector3(
+    spec.windows.atticOffsetX,
+    spec.windows.atticSillHeight + spec.windows.height * 0.4,
+    -spec.depth * 0.5 + spec.windows.frameDepth * 0.5 + 0.02,
+  );
+  const width = spec.windows.width * 0.72;
+  const height = spec.windows.height * 0.8;
+
+  for (const part of makeWindowFrame(width, height, spec.windows.frameDepth, center, Math.PI)) {
+    layers.woodwork.push(part);
+  }
+
+  layers.glass.push(
+    makeGlassPane(
+      width * 0.76,
+      height * 0.82,
+      0.04,
+      center.clone().add(new THREE.Vector3(0, 0, 0.08)),
+      Math.PI,
+    ),
+  );
+}
+
+function addWindowsStage(layers: LayerParts, spec: HouseSpec): void {
+  for (const x of spec.windows.front) addFrontWindow(layers, spec, x);
+  for (const z of spec.windows.left) addSideWindow(layers, spec, "left", z);
+  for (const z of spec.windows.right) addSideWindow(layers, spec, "right", z);
+  addAtticWindow(layers, spec);
+}
+
+function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
+  const chimneyY = spec.wallHeight + spec.chimney.height * 0.5 + 0.35;
+  layers.walls.push(
+    makeBox(
+      spec.chimney.width,
+      spec.chimney.height,
+      spec.chimney.depth,
+      new THREE.Vector3(spec.chimney.x, chimneyY, spec.chimney.z),
+    ),
+  );
+  layers.roofs.push(
+    makeBox(
+      spec.chimney.width + 0.16,
+      0.16,
+      spec.chimney.depth + 0.16,
+      new THREE.Vector3(
+        spec.chimney.x,
+        spec.wallHeight + spec.chimney.height + 0.43,
+        spec.chimney.z,
+      ),
+    ),
+  );
+
+  const frontZ = spec.depth * 0.5;
+  const stepCenterX = spec.door.offsetX;
+  layers.steps.push(
+    makeBox(
+      spec.steps.upperWidth,
+      spec.steps.upperHeight,
+      spec.steps.upperDepth,
+      new THREE.Vector3(
+        stepCenterX,
+        spec.steps.upperHeight * 0.5,
+        frontZ + spec.steps.upperDepth * 0.5,
+      ),
+    ),
+  );
+  layers.steps.push(
+    makeBox(
+      spec.steps.lowerWidth,
+      spec.steps.lowerHeight,
+      spec.steps.lowerDepth,
+      new THREE.Vector3(
+        stepCenterX,
+        spec.steps.lowerHeight * 0.5,
+        frontZ + spec.steps.lowerDepth * 0.5 + 0.18,
+      ),
+    ),
+  );
+}
+
+function stageIndex(stage: BuildStage): number {
+  return BUILD_STAGES.indexOf(stage);
+}
+
+function normalizeForMerge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry[] {
+  const normalized: THREE.BufferGeometry[] = [];
+  for (const part of parts) {
+    let geometry = part;
+    if (geometry.index !== null) {
+      const expanded = geometry.toNonIndexed();
+      geometry.dispose();
+      geometry = expanded;
+    }
+    const position = geometry.getAttribute("position");
+    if (position && !geometry.getAttribute("uv")) {
+      geometry.setAttribute(
+        "uv",
+        new THREE.BufferAttribute(new Float32Array(position.count * 2), 2),
+      );
+    }
+    normalized.push(geometry);
+  }
+  return normalized;
+}
+
+function mergeLayer(parts: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
   if (parts.length === 0) return null;
-  const merged = mergeGeometries(parts, false);
-  for (const p of parts) p.dispose();
+  const normalized = normalizeForMerge(parts);
+  const merged = mergeGeometries(normalized, false);
+  for (const geometry of normalized) geometry.dispose();
   merged.computeBoundingSphere();
   return merged;
 }
 
-export function estimateSceneBounds(geojson: GeoJSONFeatureCollection): THREE.Sphere | null {
-  const center = computeCollectionCenter(geojson);
-  let maxDist = 1;
-  const visit = (lon: number, lat: number) => {
-    const { x, z } = projectToXZ(lon, lat, center.lon, center.lat);
-    const d = Math.hypot(x, z);
-    if (d > maxDist) maxDist = d;
+export function buildHouseLayers(
+  stage: BuildStage,
+  spec: HouseSpec = DEFAULT_HOUSE_SPEC,
+): CityLayers {
+  const layers = emptyLayers();
+  const current = stageIndex(stage);
+
+  addBaseStage(layers, spec);
+  if (current >= stageIndex("roof")) addRoofStage(layers, spec);
+  if (current >= stageIndex("door")) addDoorStage(layers, spec);
+  if (current >= stageIndex("windows")) addWindowsStage(layers, spec);
+  if (current >= stageIndex("details")) addDetailsStage(layers, spec);
+
+  return {
+    foundations: mergeLayer(layers.foundations),
+    walls: mergeLayer(layers.walls),
+    roofs: mergeLayer(layers.roofs),
+    woodwork: mergeLayer(layers.woodwork),
+    glass: mergeLayer(layers.glass),
+    steps: mergeLayer(layers.steps),
   };
-  for (const f of geojson.features) {
-    const g = f.geometry;
-    const visitRing = (ring: LonLat[]) => {
-      for (const c of ring) visit(c[0], c[1]);
-    };
-    if (g.type === "Polygon") {
-      for (const ring of g.coordinates) visitRing(ring);
-    } else if (g.type === "MultiPolygon") {
-      for (const poly of g.coordinates) {
-        for (const ring of poly) visitRing(ring);
-      }
-    }
-  }
-  const maxH = Math.max(...collectHeights(geojson), 1);
-  const c = new THREE.Vector3(0, maxH * 0.35, 0);
-  return new THREE.Sphere(c, Math.max(maxDist * 1.4, maxH * 2, 80));
 }
 
-function collectHeights(geojson: GeoJSONFeatureCollection): number[] {
-  return geojson.features.map((f) => getBuildingHeight(f.properties));
+export function estimateHouseBounds(
+  spec: HouseSpec = DEFAULT_HOUSE_SPEC,
+): THREE.Sphere {
+  const radius = Math.max(spec.width, spec.depth) * 0.92;
+  return new THREE.Sphere(
+    new THREE.Vector3(0, spec.wallHeight * 0.55, 0),
+    radius + spec.roofHeight * 0.9,
+  );
+}
+
+export function buildCityLayersFromGeoJSON(): CityLayers {
+  return buildHouseLayers("details");
 }

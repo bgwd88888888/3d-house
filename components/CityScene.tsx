@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import {
-  buildCityGeometryFromGeoJSON,
-  estimateSceneBounds,
-  type GeoJSONFeatureCollection,
+  buildHouseLayers,
+  estimateHouseBounds,
+  type BuildStage,
+  type CityLayers,
 } from "@/lib/geoBuildings";
-
-const GEOJSON_URL = "/data/buildings.geojson";
 
 function FitCamera({ sphere }: { sphere: THREE.Sphere | null }) {
   const { camera, controls } = useThree();
@@ -23,12 +21,17 @@ function FitCamera({ sphere }: { sphere: THREE.Sphere | null }) {
 
     orbit?.target?.copy(sphere.center);
 
-    const offset = new THREE.Vector3(1, 0.55, 1).normalize();
     const dist =
       sphere.radius / Math.sin(((camera.fov * Math.PI) / 180) / 2);
-    camera.position.copy(sphere.center.clone().add(offset.multiplyScalar(dist * 1.15)));
+    const eyeOffset = new THREE.Vector3(1, 0.5, 1)
+      .normalize()
+      .multiplyScalar(dist * 1.12);
+    camera.position.copy(sphere.center.clone().add(eyeOffset));
+    /* R3F 透视相机需在运行时写 near/far，见 https://docs.pmnd.rs/react-three-fiber/api/hooks#usetthree */
+    /* eslint-disable react-hooks/immutability -- PerspectiveCamera 裁剪面 */
     camera.near = Math.max(dist / 800, 0.1);
     camera.far = Math.max(dist * 40, 2000);
+    /* eslint-enable react-hooks/immutability */
     camera.updateProjectionMatrix();
     orbit?.update?.();
     done.current = true;
@@ -37,72 +40,118 @@ function FitCamera({ sphere }: { sphere: THREE.Sphere | null }) {
   return null;
 }
 
-export function CityScene() {
-  const [data, setData] = useState<GeoJSONFeatureCollection | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function disposeLayers(l: CityLayers | null) {
+  if (!l) return;
+  l.foundations?.dispose();
+  l.walls?.dispose();
+  l.roofs?.dispose();
+  l.woodwork?.dispose();
+  l.glass?.dispose();
+  l.steps?.dispose();
+}
+
+type CitySceneProps = {
+  stage: BuildStage;
+};
+
+export function CityScene({ stage }: CitySceneProps) {
+  const { layers, bounds } = useMemo(() => {
+    const lyr = buildHouseLayers(stage);
+    const sphere = estimateHouseBounds();
+    return { layers: lyr, bounds: sphere };
+  }, [stage]);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(GEOJSON_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json: GeoJSONFeatureCollection) => {
-        if (!cancelled) setData(json);
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => disposeLayers(layers);
+  }, [layers]);
 
-  const { geometry, bounds } = useMemo(() => {
-    if (!data) return { geometry: null as THREE.BufferGeometry | null, bounds: null as THREE.Sphere | null };
-    const geom = buildCityGeometryFromGeoJSON(data);
-    const sphere = estimateSceneBounds(data);
-    return { geometry: geom, bounds: sphere };
-  }, [data]);
-
-  useEffect(() => {
-    return () => {
-      geometry?.dispose();
-    };
-  }, [geometry]);
-
-  if (error) {
-    return (
-      <Html center>
-        <p className="max-w-xs rounded bg-red-950/90 px-3 py-2 text-sm text-red-100">
-          无法加载 GeoJSON：{error}
-        </p>
-      </Html>
-    );
-  }
-
-  if (!data || !geometry) {
-    return (
-      <Html center>
-        <p className="rounded bg-zinc-900/80 px-3 py-2 text-sm text-zinc-200">
-          正在加载城市数据…
-        </p>
-      </Html>
-    );
-  }
+  const wallMat = (
+    <meshStandardMaterial
+      color="#f5f3eb"
+      roughness={0.42}
+      metalness={0.02}
+      envMapIntensity={0.85}
+    />
+  );
+  const roofMat = (
+    <meshStandardMaterial
+      color="#cf4b15"
+      roughness={0.6}
+      metalness={0.03}
+      envMapIntensity={0.65}
+      side={THREE.DoubleSide}
+    />
+  );
+  const baseMat = (
+    <meshStandardMaterial
+      color="#8b9199"
+      roughness={0.78}
+      metalness={0.04}
+      envMapIntensity={0.35}
+    />
+  );
+  const woodMat = (
+    <meshStandardMaterial
+      color="#7c431f"
+      roughness={0.56}
+      metalness={0.05}
+      envMapIntensity={0.7}
+    />
+  );
+  const glassMat = (
+    <meshPhysicalMaterial
+      color="#9eb3bf"
+      roughness={0.08}
+      metalness={0.02}
+      transmission={0.55}
+      thickness={0.2}
+      transparent
+      opacity={0.58}
+      envMapIntensity={1}
+    />
+  );
+  const stepMat = (
+    <meshStandardMaterial
+      color="#c2c5ca"
+      roughness={0.86}
+      metalness={0.01}
+      envMapIntensity={0.35}
+    />
+  );
 
   return (
     <>
       <FitCamera sphere={bounds} />
-      <mesh geometry={geometry} castShadow receiveShadow>
-        <meshStandardMaterial
-          vertexColors
-          roughness={0.55}
-          metalness={0.12}
-          flatShading
-        />
-      </mesh>
+      {layers.foundations ? (
+        <mesh geometry={layers.foundations} castShadow receiveShadow>
+          {baseMat}
+        </mesh>
+      ) : null}
+      {layers.walls ? (
+        <mesh geometry={layers.walls} castShadow receiveShadow>
+          {wallMat}
+        </mesh>
+      ) : null}
+      {layers.roofs ? (
+        <mesh geometry={layers.roofs} castShadow receiveShadow>
+          {roofMat}
+        </mesh>
+      ) : null}
+      {layers.woodwork ? (
+        <mesh geometry={layers.woodwork} castShadow receiveShadow>
+          {woodMat}
+        </mesh>
+      ) : null}
+      {layers.glass ? (
+        <mesh geometry={layers.glass} castShadow receiveShadow>
+          {glassMat}
+        </mesh>
+      ) : null}
+      {layers.steps ? (
+        <mesh geometry={layers.steps} castShadow receiveShadow>
+          {stepMat}
+        </mesh>
+      ) : null}
     </>
   );
 }
