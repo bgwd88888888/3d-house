@@ -50,9 +50,16 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         <CityScene stage={stage} />
       </Suspense>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>
         <planeGeometry args={[2400, 2400]} />
-        <meshStandardMaterial color="#efefee" roughness={0.96} metalness={0} />
+        <meshStandardMaterial
+          color="#efefee"
+          roughness={0.96}
+          metalness={0}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
       </mesh>
 
       <Grid
@@ -61,7 +68,7 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         fadeStrength={1.2}
         cellSize={6}
         sectionSize={42}
-        position={[0, 0.001, 0]}
+        position={[0, -0.06, 0]}
         sectionColor="#d2d4db"
         cellColor="#e3e5ea"
       />

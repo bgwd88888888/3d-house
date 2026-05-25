@@ -10,6 +10,16 @@ import {
   type CityLayers,
 } from "@/lib/geoBuildings";
 
+function useEdges(
+  geometry: THREE.BufferGeometry | null,
+  thresholdAngle = 15,
+): THREE.EdgesGeometry | null {
+  return useMemo(() => {
+    if (!geometry) return null;
+    return new THREE.EdgesGeometry(geometry, thresholdAngle);
+  }, [geometry, thresholdAngle]);
+}
+
 function FitCamera({ sphere }: { sphere: THREE.Sphere | null }) {
   const { camera, controls } = useThree();
   const done = useRef(false);
@@ -50,6 +60,10 @@ function disposeLayers(l: CityLayers | null) {
   l.steps?.dispose();
 }
 
+function disposeEdges(e: THREE.EdgesGeometry | null) {
+  e?.dispose();
+}
+
 type CitySceneProps = {
   stage: BuildStage;
 };
@@ -61,9 +75,19 @@ export function CityScene({ stage }: CitySceneProps) {
     return { layers: lyr, bounds: sphere };
   }, [stage]);
 
+  const roofEdges = useEdges(layers.roofs, 12);
+  const wallEdges = useEdges(layers.walls, 30);
+
   useEffect(() => {
     return () => disposeLayers(layers);
   }, [layers]);
+
+  useEffect(() => {
+    return () => {
+      disposeEdges(roofEdges);
+      disposeEdges(wallEdges);
+    };
+  }, [roofEdges, wallEdges]);
 
   const wallMat = (
     <meshStandardMaterial
@@ -136,6 +160,32 @@ export function CityScene({ stage }: CitySceneProps) {
         <mesh geometry={layers.roofs} castShadow receiveShadow>
           {roofMat}
         </mesh>
+      ) : null}
+      {roofEdges ? (
+        <lineSegments geometry={roofEdges} renderOrder={1}>
+          <lineBasicMaterial
+            color="#5a1d05"
+            transparent
+            opacity={0.55}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        </lineSegments>
+      ) : null}
+      {wallEdges ? (
+        <lineSegments geometry={wallEdges} renderOrder={1}>
+          <lineBasicMaterial
+            color="#9a958a"
+            transparent
+            opacity={0.28}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        </lineSegments>
       ) : null}
       {layers.woodwork ? (
         <mesh geometry={layers.woodwork} castShadow receiveShadow>
