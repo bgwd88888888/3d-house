@@ -108,7 +108,7 @@ export function CityScene({ stage }: CitySceneProps) {
       roughness={0.82}
       metalness={0.02}
       normalScale={new THREE.Vector2(0.55, 0.55)}
-      envMapIntensity={0.85}
+      envMapIntensity={0.45}
     />
   );
   const roofMat = (
@@ -118,7 +118,7 @@ export function CityScene({ stage }: CitySceneProps) {
       roughness={0.78}
       metalness={0.02}
       normalScale={new THREE.Vector2(0.7, 0.7)}
-      envMapIntensity={0.7}
+      envMapIntensity={0.4}
       side={THREE.DoubleSide}
     />
   );
@@ -127,7 +127,7 @@ export function CityScene({ stage }: CitySceneProps) {
       color="#8b9199"
       roughness={0.78}
       metalness={0.04}
-      envMapIntensity={0.35}
+      envMapIntensity={0.25}
     />
   );
   const woodMat = (
@@ -135,7 +135,7 @@ export function CityScene({ stage }: CitySceneProps) {
       color="#7c431f"
       roughness={0.56}
       metalness={0.05}
-      envMapIntensity={0.7}
+      envMapIntensity={0.4}
     />
   );
   const glassMat = (
@@ -147,7 +147,7 @@ export function CityScene({ stage }: CitySceneProps) {
       thickness={0.2}
       transparent
       opacity={0.58}
-      envMapIntensity={1}
+      envMapIntensity={0.75}
     />
   );
   const stepMat = (
@@ -155,7 +155,7 @@ export function CityScene({ stage }: CitySceneProps) {
       color="#c2c5ca"
       roughness={0.86}
       metalness={0.01}
-      envMapIntensity={0.35}
+      envMapIntensity={0.25}
     />
   );
 
