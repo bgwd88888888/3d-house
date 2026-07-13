@@ -308,6 +308,9 @@ function makeGlassPane(
   return geometry;
 }
 
+/** 屋顶瓦片在世界单位中的平铺边长（米） */
+const ROOF_TEXTURE_TILE = 1.6;
+
 /** 人字屋顶：屋脊沿 Z，坡面朝向 ±X；无厚度，材质需 DoubleSide */
 function makeGableRoof(spec: HouseSpec): THREE.BufferGeometry {
   const halfW = spec.width * 0.5;
@@ -316,27 +319,63 @@ function makeGableRoof(spec: HouseSpec): THREE.BufferGeometry {
   const roofD = halfD + spec.roofOverhang;
   const baseY = spec.wallHeight + ROOF_BASE_GAP;
   const peakY = spec.wallHeight + spec.roofHeight;
+  const slopeLen = Math.hypot(roofW, peakY - baseY);
 
-  const vertices = [
-    -roofW, baseY, -roofD,
-    roofW, baseY, -roofD,
-    roofW, baseY, roofD,
-    -roofW, baseY, roofD,
-    0, peakY, -roofD,
-    0, peakY, roofD,
+  // 非索引三角面，便于为每个坡面写入独立 UV
+  // U 沿屋脊（Z），V 沿坡面（檐口→屋脊）
+  const slopeUv = (x: number, z: number): [number, number] => [
+    (z + roofD) / ROOF_TEXTURE_TILE,
+    (Math.abs(x) / roofW) * (slopeLen / ROOF_TEXTURE_TILE),
   ];
-  const indices = [
-    0, 1, 4,
-    3, 5, 2,
-    1, 2, 5,
-    1, 5, 4,
-    3, 0, 4,
-    3, 4, 5,
+  const gableUv = (x: number, y: number): [number, number] => [
+    (x + roofW) / ROOF_TEXTURE_TILE,
+    (y - baseY) / ROOF_TEXTURE_TILE,
   ];
+
+  type Vert = { p: [number, number, number]; uv: [number, number] };
+  const verts: Vert[] = [];
+  const pushTri = (a: Vert, b: Vert, c: Vert) => {
+    verts.push(a, b, c);
+  };
+
+  const L0: Vert = { p: [-roofW, baseY, -roofD], uv: slopeUv(-roofW, -roofD) };
+  const L1: Vert = { p: [-roofW, baseY, roofD], uv: slopeUv(-roofW, roofD) };
+  const R0: Vert = { p: [roofW, baseY, -roofD], uv: slopeUv(roofW, -roofD) };
+  const R1: Vert = { p: [roofW, baseY, roofD], uv: slopeUv(roofW, roofD) };
+  const P0: Vert = { p: [0, peakY, -roofD], uv: slopeUv(0, -roofD) };
+  const P1: Vert = { p: [0, peakY, roofD], uv: slopeUv(0, roofD) };
+
+  // 左坡、右坡
+  pushTri(L1, L0, { p: P0.p, uv: slopeUv(0, -roofD) });
+  pushTri(L1, { p: P0.p, uv: slopeUv(0, -roofD) }, { p: P1.p, uv: slopeUv(0, roofD) });
+  pushTri(R0, R1, { p: P1.p, uv: slopeUv(0, roofD) });
+  pushTri(R0, { p: P1.p, uv: slopeUv(0, roofD) }, { p: P0.p, uv: slopeUv(0, -roofD) });
+
+  // 前后山墙三角面（绕序与原索引一致，保证外法线朝外）
+  pushTri(
+    { p: L0.p, uv: gableUv(-roofW, baseY) },
+    { p: R0.p, uv: gableUv(roofW, baseY) },
+    { p: P0.p, uv: gableUv(0, peakY) },
+  );
+  pushTri(
+    { p: L1.p, uv: gableUv(-roofW, baseY) },
+    { p: P1.p, uv: gableUv(0, peakY) },
+    { p: R1.p, uv: gableUv(roofW, baseY) },
+  );
+
+  const positions = new Float32Array(verts.length * 3);
+  const uvs = new Float32Array(verts.length * 2);
+  for (let i = 0; i < verts.length; i += 1) {
+    positions[i * 3] = verts[i].p[0];
+    positions[i * 3 + 1] = verts[i].p[1];
+    positions[i * 3 + 2] = verts[i].p[2];
+    uvs[i * 2] = verts[i].uv[0];
+    uvs[i * 2 + 1] = verts[i].uv[1];
+  }
 
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setIndex(indices);
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -490,6 +529,7 @@ function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
         spec.wallHeight + spec.chimney.height + 0.43,
         spec.chimney.z,
       ),
+      true,
     ),
   );
 

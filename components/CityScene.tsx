@@ -5,7 +5,7 @@
  *
  * - stage 变化会重建几何；卸载时 dispose，避免 GPU 泄漏
  * - FitCamera 仅首帧根据房子包围球对准轨道目标
- * - 墙体用 plaster PBR 贴图；屋顶纯色且 DoubleSide（人字面无厚度）
+ * - 墙体用 plaster PBR 贴图；屋顶用瓦片 PBR，且 DoubleSide（人字面无厚度）
  * - woodwork / glass / steps 与墙体分层，便于换材质而不改几何
  */
 import { useEffect, useMemo, useRef } from "react";
@@ -18,6 +18,7 @@ import {
   type CityLayers,
 } from "@/lib/geoBuildings";
 import { useWallTextures } from "@/hooks/useWallTextures";
+import { useRoofTextures } from "@/hooks/useRoofTextures";
 
 function useEdges(
   geometry: THREE.BufferGeometry | null,
@@ -79,6 +80,7 @@ type CitySceneProps = {
 
 export function CityScene({ stage }: CitySceneProps) {
   const wallTextures = useWallTextures();
+  const roofTextures = useRoofTextures();
   const { layers, bounds } = useMemo(() => {
     const lyr = buildHouseLayers(stage);
     const sphere = estimateHouseBounds();
@@ -111,10 +113,12 @@ export function CityScene({ stage }: CitySceneProps) {
   );
   const roofMat = (
     <meshStandardMaterial
-      color="#cf4b15"
-      roughness={0.6}
-      metalness={0.03}
-      envMapIntensity={0.65}
+      {...roofTextures}
+      color="#e8884a"
+      roughness={0.78}
+      metalness={0.02}
+      normalScale={new THREE.Vector2(0.7, 0.7)}
+      envMapIntensity={0.7}
       side={THREE.DoubleSide}
     />
   );
