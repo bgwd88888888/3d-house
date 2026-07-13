@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import * as THREE from "three";
 import type { BuildStage } from "@/lib/geoBuildings";
 import { CityScene } from "./CityScene";
+import { GrassGround } from "./GrassGround";
 
 type CityCanvasProps = {
   className?: string;
@@ -61,6 +62,10 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
           polygonOffsetUnits={1}
         />
       </mesh>
+
+      <Suspense fallback={null}>
+        <GrassGround />
+      </Suspense>
 
       <Grid
         infiniteGrid
