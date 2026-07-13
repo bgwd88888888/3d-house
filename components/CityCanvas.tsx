@@ -22,7 +22,7 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         antialias: true,
         alpha: false,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 0.96,
+        toneMappingExposure: 0.78,
       }}
       onCreated={({ gl }) => {
         gl.shadowMap.type = THREE.PCFShadowMap;
@@ -30,11 +30,11 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
     >
       <color attach="background" args={["#f1f1ef"]} />
 
-      <hemisphereLight intensity={0.6} color="#fffaf2" groundColor="#afb2bd" />
-      <ambientLight intensity={0.22} />
+      <hemisphereLight intensity={0.38} color="#fffaf2" groundColor="#afb2bd" />
+      <ambientLight intensity={0.1} />
       <directionalLight
         castShadow
-        intensity={1.5}
+        intensity={0.9}
         position={[48, 86, 56]}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-far={520}
@@ -47,7 +47,7 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
       />
 
       <Suspense fallback={null}>
-        <Environment preset="studio" environmentIntensity={0.42} />
+        <Environment preset="studio" environmentIntensity={0.22} />
         <CityScene stage={stage} />
       </Suspense>
 
