@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * 庭院桦树摆放表（Quaternius 模型）。
+ * 围在草地边缘一圈，避免挡住房子正面观察角度。
+ */
 import { GARDEN_TREE_MODELS } from "@/hooks/useGardenTreeModel";
 import { GardenTree, type GardenTreeProps } from "./GardenTree";
 

@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * 墙体灰泥 PBR 贴图（ambientCG Plaster001）。
+ * UV 平铺由 geoBuildings.scaleBoxUvs 按墙面尺寸处理；此处只配置 wrap / colorSpace。
+ */
 import { useTexture } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useLayoutEffect } from "react";

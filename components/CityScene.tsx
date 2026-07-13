@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * 房子渲染层：把 geoBuildings 产出的分层几何挂上材质与描边。
+ *
+ * - stage 变化会重建几何；卸载时 dispose，避免 GPU 泄漏
+ * - FitCamera 仅首帧根据房子包围球对准轨道目标
+ * - 墙体用 plaster PBR 贴图；屋顶纯色且 DoubleSide（人字面无厚度）
+ * - woodwork / glass / steps 与墙体分层，便于换材质而不改几何
+ */
 import { useEffect, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";

@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * 院子草地：带位移的 PBR 地面 + 实例化草叶（GrassBlades）。
+ * 尺寸覆盖房子周围一圈；Y 略低于 0，避免与地基 Z-fighting。
+ */
 import * as THREE from "three";
 import { useGrassTextures } from "@/hooks/useGrassTextures";
 import { GrassBlades } from "./GrassBlades";

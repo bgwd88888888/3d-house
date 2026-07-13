@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * 首页：全屏 R3F 场景。
+ * CityCanvas 需关 SSR（WebGL）；stage="details" 表示直接展示建完的整栋房子。
+ */
 import dynamic from "next/dynamic";
 
 const CityCanvas = dynamic(

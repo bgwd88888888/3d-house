@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * 3D 场景根 Canvas：灯光 / 环境 / 地面 / 房子 / 庭院装饰 / 轨道相机。
+ *
+ * 组装关系：
+ * - CityScene     程序化房子（随 stage 渐进建造）
+ * - GrassGround   草地平面 + 草叶实例
+ * - GardenPeople  庭院人物（Kenney 角色 + 精灵）
+ * - GardenTrees   桦树模型摆放
+ *
+ * 大地面平面在草地之下；Grid 仅作空间参考，可绕房子旋转观察。
+ */
 import { Canvas } from "@react-three/fiber";
 import { Environment, Grid, OrbitControls } from "@react-three/drei";
 import { Suspense } from "react";
@@ -32,6 +43,7 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
     >
       <color attach="background" args={["#f1f1ef"]} />
 
+      {/* 柔和环境光 + 主方向光（带大范围阴影） */}
       <hemisphereLight intensity={0.38} color="#fffaf2" groundColor="#afb2bd" />
       <ambientLight intensity={0.1} />
       <directionalLight
@@ -53,6 +65,7 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         <CityScene stage={stage} />
       </Suspense>
 
+      {/* 无限感浅灰地面（草地之下） */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>
         <planeGeometry args={[2400, 2400]} />
         <meshStandardMaterial

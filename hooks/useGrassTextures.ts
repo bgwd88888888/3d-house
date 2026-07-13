@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * 草地 PBR 贴图（ambientCG Grass008）。
+ * 在 hook 内设置 RepeatWrapping；位移贴图由 GrassGround 的 displacementScale 驱动。
+ */
 import { useTexture } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useLayoutEffect } from "react";

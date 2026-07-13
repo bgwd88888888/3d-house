@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * 庭院人物摆放表。
+ * - AsianWomanSprite：广告牌精灵
+ * - 其余为 Kenney 低模角色（position 相对房子原点，Y≈0 贴地）
+ */
 import { KENNEY_CHARACTER_SKINS } from "@/hooks/useGardenCharacter";
 import { AsianWomanSprite } from "./AsianWomanSprite";
 import {
