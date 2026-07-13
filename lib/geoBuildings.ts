@@ -134,13 +134,46 @@ function emptyLayers(): LayerParts {
   };
 }
 
+const WALL_TEXTURE_TILE = 2.2;
+
+function scaleBoxUvs(
+  geometry: THREE.BufferGeometry,
+  width: number,
+  height: number,
+  depth: number,
+): void {
+  const uv = geometry.getAttribute("uv");
+  if (!uv) return;
+
+  const faceScales: [number, number][] = [
+    [depth / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
+    [depth / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
+    [width / WALL_TEXTURE_TILE, depth / WALL_TEXTURE_TILE],
+    [width / WALL_TEXTURE_TILE, depth / WALL_TEXTURE_TILE],
+    [width / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
+    [width / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
+  ];
+
+  for (let face = 0; face < 6; face += 1) {
+    const [uScale, vScale] = faceScales[face];
+    const base = face * 4;
+    for (let vertex = 0; vertex < 4; vertex += 1) {
+      const index = base + vertex;
+      uv.setXY(index, uv.getX(index) * uScale, uv.getY(index) * vScale);
+    }
+  }
+  uv.needsUpdate = true;
+}
+
 function makeBox(
   width: number,
   height: number,
   depth: number,
   center: THREE.Vector3,
+  scaleUvs = false,
 ): THREE.BufferGeometry {
   const geometry = new THREE.BoxGeometry(width, height, depth);
+  if (scaleUvs) scaleBoxUvs(geometry, width, height, depth);
   geometry.translate(center.x, center.y, center.z);
   return geometry;
 }
@@ -250,6 +283,7 @@ function addBaseStage(layers: LayerParts, spec: HouseSpec): void {
       spec.wallHeight,
       spec.depth,
       new THREE.Vector3(0, spec.wallHeight * 0.5, 0),
+      true,
     ),
   );
 }
@@ -389,6 +423,7 @@ function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
       spec.chimney.height,
       spec.chimney.depth,
       new THREE.Vector3(spec.chimney.x, chimneyY, spec.chimney.z),
+      true,
     ),
   );
   layers.roofs.push(

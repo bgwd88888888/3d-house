@@ -9,6 +9,7 @@ import {
   type BuildStage,
   type CityLayers,
 } from "@/lib/geoBuildings";
+import { useWallTextures } from "@/hooks/useWallTextures";
 
 function useEdges(
   geometry: THREE.BufferGeometry | null,
@@ -69,6 +70,7 @@ type CitySceneProps = {
 };
 
 export function CityScene({ stage }: CitySceneProps) {
+  const wallTextures = useWallTextures();
   const { layers, bounds } = useMemo(() => {
     const lyr = buildHouseLayers(stage);
     const sphere = estimateHouseBounds();
@@ -91,9 +93,11 @@ export function CityScene({ stage }: CitySceneProps) {
 
   const wallMat = (
     <meshStandardMaterial
+      {...wallTextures}
       color="#f5f3eb"
-      roughness={0.42}
+      roughness={0.82}
       metalness={0.02}
+      normalScale={new THREE.Vector2(0.55, 0.55)}
       envMapIntensity={0.85}
     />
   );
