@@ -9,7 +9,7 @@ import { useThree } from "@react-three/fiber";
 import { useLayoutEffect } from "react";
 import * as THREE from "three";
 
-const GRASS_TEXTURE_REPEAT = [18, 15] as const;
+const GRASS_TEXTURE_REPEAT = [12, 10] as const;
 
 const GRASS_TEXTURE_URLS = {
   map: "/textures/grass-008/Grass008_1K-JPG_Color.jpg",
