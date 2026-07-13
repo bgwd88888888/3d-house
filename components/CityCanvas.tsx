@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { BuildStage } from "@/lib/geoBuildings";
 import { CityScene } from "./CityScene";
 import { GrassGround } from "./GrassGround";
+import { GardenPeople } from "./GardenPeople";
 import { GardenTrees } from "./GardenTrees";
 
 type CityCanvasProps = {
@@ -66,6 +67,9 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
 
       <Suspense fallback={null}>
         <GrassGround />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenPeople />
       </Suspense>
       <Suspense fallback={null}>
         <GardenTrees />
