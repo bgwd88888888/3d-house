@@ -1,0 +1,125 @@
+/**
+ * 简易天气预设：晴 / 阴 / 黄昏。
+ * 晴天目标：草原般饱和蓝天 + 白积云。
+ */
+export const WEATHER_KINDS = ["sunny", "cloudy", "dusk"] as const;
+
+export type WeatherKind = (typeof WEATHER_KINDS)[number];
+
+export const WEATHER_LABELS: Record<WeatherKind, string> = {
+  sunny: "晴",
+  cloudy: "阴",
+  dusk: "黄昏",
+};
+
+export type WeatherPreset = {
+  background: string;
+  fogColor: string;
+  fogNear: number;
+  fogFar: number;
+  exposure: number;
+  sunPosition: [number, number, number];
+  turbidity: number;
+  rayleigh: number;
+  mieCoefficient: number;
+  mieDirectionalG: number;
+  hemiIntensity: number;
+  hemiSky: string;
+  hemiGround: string;
+  sunIntensity: number;
+  sunColor: string;
+  fillIntensity: number;
+  fillColor: string;
+  faceFillIntensity: number;
+  faceFillColor: string;
+  envIntensity: number;
+  cloudOpacity: number;
+  cloudColor: string;
+  cloudSpeed: number;
+  /** 是否在地面画软云影 */
+  cloudShadows: boolean;
+};
+
+export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
+  sunny: {
+    // 背景/雾跟蓝穹一致，避免地平线洗白
+    background: "#6aade6",
+    fogColor: "#9ec6ea",
+    fogNear: 280,
+    fogFar: 900,
+    exposure: 1.0,
+    sunPosition: [55, 95, 40],
+    turbidity: 0.6,
+    rayleigh: 3.4,
+    mieCoefficient: 0.0015,
+    mieDirectionalG: 0.7,
+    hemiIntensity: 0.68,
+    hemiSky: "#7eb8e8",
+    hemiGround: "#8fa06e",
+    sunIntensity: 1.7,
+    sunColor: "#fff8ea",
+    fillIntensity: 0.3,
+    fillColor: "#8ec0ee",
+    faceFillIntensity: 0.22,
+    faceFillColor: "#e8f4ff",
+    envIntensity: 0.45,
+    cloudOpacity: 1,
+    cloudColor: "#ffffff",
+    cloudSpeed: 0.04,
+    cloudShadows: true,
+  },
+  cloudy: {
+    background: "#a8b4c0",
+    fogColor: "#a8b4c0",
+    fogNear: 70,
+    fogFar: 360,
+    exposure: 0.95,
+    sunPosition: [40, 55, 30],
+    turbidity: 8.5,
+    rayleigh: 0.55,
+    mieCoefficient: 0.008,
+    mieDirectionalG: 0.7,
+    hemiIntensity: 0.7,
+    hemiSky: "#b8c4d0",
+    hemiGround: "#6e7668",
+    sunIntensity: 0.72,
+    sunColor: "#e8ecf0",
+    fillIntensity: 0.55,
+    fillColor: "#9aabbc",
+    faceFillIntensity: 0.4,
+    faceFillColor: "#c5d0dc",
+    envIntensity: 0.45,
+    cloudOpacity: 0.75,
+    cloudColor: "#e4e8ee",
+    cloudSpeed: 0.12,
+    cloudShadows: false,
+  },
+  dusk: {
+    background: "#c4a890",
+    fogColor: "#c4a890",
+    fogNear: 85,
+    fogFar: 400,
+    exposure: 1.05,
+    sunPosition: [85, 18, 35],
+    turbidity: 6.2,
+    rayleigh: 1.35,
+    mieCoefficient: 0.01,
+    mieDirectionalG: 0.88,
+    hemiIntensity: 0.48,
+    hemiSky: "#d8b8a0",
+    hemiGround: "#5a4a3a",
+    sunIntensity: 1.25,
+    sunColor: "#ffb070",
+    fillIntensity: 0.28,
+    fillColor: "#6a7a9a",
+    faceFillIntensity: 0.22,
+    faceFillColor: "#ffd0b0",
+    envIntensity: 0.38,
+    cloudOpacity: 0.6,
+    cloudColor: "#ffd0b8",
+    cloudSpeed: 0.08,
+    cloudShadows: true,
+  },
+};
+
+export const DEFAULT_WEATHER: WeatherKind = "sunny";

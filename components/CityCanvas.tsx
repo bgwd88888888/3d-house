@@ -2,30 +2,96 @@
 
 /**
  * 3D 场景根 Canvas：灯光 / 环境 / 地面 / 房子 / 庭院装饰 / 轨道相机。
- *
- * 写实倾向：软阴影、降饱和天空、偏自然雾色；弱化玩具感硬光对比。
+ * 晴空用 PrairieSky 蓝穹（俯视仍保持钴蓝），天气预设驱动灯光与雾。
  */
-import { Canvas } from "@react-three/fiber";
-import { Environment, OrbitControls, Sky } from "@react-three/drei";
-import { Suspense } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { Environment, OrbitControls } from "@react-three/drei";
+import { Suspense, useEffect } from "react";
 import * as THREE from "three";
 import type { BuildStage } from "@/lib/geoBuildings";
+import {
+  DEFAULT_WEATHER,
+  WEATHER_PRESETS,
+  type WeatherKind,
+} from "@/lib/weatherPresets";
 import { CityScene } from "./CityScene";
 import { GrassGround } from "./GrassGround";
 import { GardenPath } from "./GardenPath";
 import { GardenPeople } from "./GardenPeople";
 import { GardenTrees } from "./GardenTrees";
 import { GardenPickup } from "./GardenPickup";
-
-/** 偏高斜阳：照亮门脸，阴影不拖太长 */
-const SUN_POSITION: [number, number, number] = [62, 68, 48];
+import { PrairieSky } from "./PrairieSky";
+import { SkyClouds } from "./SkyClouds";
 
 type CityCanvasProps = {
   className?: string;
   stage: BuildStage;
+  weather?: WeatherKind;
 };
 
-export function CityCanvas({ className, stage }: CityCanvasProps) {
+function WeatherAtmosphere({ weather }: { weather: WeatherKind }) {
+  const preset = WEATHER_PRESETS[weather];
+  const { gl } = useThree();
+
+  useEffect(() => {
+    gl.toneMappingExposure = preset.exposure;
+  }, [gl, preset.exposure]);
+
+  return (
+    <>
+      <color attach="background" args={[preset.background]} />
+      <fog
+        attach="fog"
+        args={[preset.fogColor, preset.fogNear, preset.fogFar]}
+      />
+
+      <PrairieSky weather={weather} />
+
+      <Suspense fallback={null}>
+        <SkyClouds preset={preset} />
+      </Suspense>
+
+      <hemisphereLight
+        intensity={preset.hemiIntensity}
+        color={preset.hemiSky}
+        groundColor={preset.hemiGround}
+      />
+      <directionalLight
+        castShadow
+        intensity={preset.sunIntensity}
+        color={preset.sunColor}
+        position={preset.sunPosition}
+        shadow-mapSize={[4096, 4096]}
+        shadow-camera-far={360}
+        shadow-camera-left={-120}
+        shadow-camera-right={120}
+        shadow-camera-top={120}
+        shadow-camera-bottom={-120}
+        shadow-radius={8}
+        shadow-bias={-0.00012}
+        shadow-normalBias={0.04}
+      />
+      <directionalLight
+        intensity={preset.fillIntensity}
+        color={preset.fillColor}
+        position={[-40, 32, -22]}
+      />
+      <directionalLight
+        intensity={preset.faceFillIntensity}
+        color={preset.faceFillColor}
+        position={[12, 22, 70]}
+      />
+    </>
+  );
+}
+
+export function CityCanvas({
+  className,
+  stage,
+  weather = DEFAULT_WEATHER,
+}: CityCanvasProps) {
+  const preset = WEATHER_PRESETS[weather];
+
   return (
     <Canvas
       className={className}
@@ -34,53 +100,19 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         antialias: true,
         alpha: false,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.18,
+        toneMappingExposure: preset.exposure,
       }}
       onCreated={({ gl }) => {
         gl.shadowMap.type = THREE.PCFSoftShadowMap;
       }}
     >
-      <color attach="background" args={["#c9d8e8"]} />
-      <fog attach="fog" args={["#c9d8e8", 110, 480]} />
-
-      <Sky
-        sunPosition={SUN_POSITION}
-        turbidity={3.8}
-        rayleigh={1.05}
-        mieCoefficient={0.0045}
-        mieDirectionalG={0.8}
-      />
-
-      <hemisphereLight intensity={0.82} color="#d4e2f0" groundColor="#8a9870" />
-      <directionalLight
-        castShadow
-        intensity={1.5}
-        color="#fff0d8"
-        position={SUN_POSITION}
-        shadow-mapSize={[4096, 4096]}
-        shadow-camera-far={280}
-        shadow-camera-left={-70}
-        shadow-camera-right={70}
-        shadow-camera-top={70}
-        shadow-camera-bottom={-70}
-        shadow-radius={6}
-        shadow-bias={-0.00012}
-        shadow-normalBias={0.04}
-      />
-      <directionalLight
-        intensity={0.48}
-        color="#b8cce0"
-        position={[-40, 32, -22]}
-      />
-      {/* 门脸补光，避免正墙死黑 */}
-      <directionalLight
-        intensity={0.32}
-        color="#e8f0fa"
-        position={[12, 22, 70]}
-      />
+      <WeatherAtmosphere weather={weather} />
 
       <Suspense fallback={null}>
-        <Environment preset="park" environmentIntensity={0.62} />
+        <Environment
+          preset="park"
+          environmentIntensity={preset.envIntensity}
+        />
         <CityScene stage={stage} />
       </Suspense>
 
