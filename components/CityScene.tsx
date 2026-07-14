@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * 房子渲染层：把 geoBuildings 产出的分层几何挂上材质与描边。
+ * 房子渲染层：把 geoBuildings 产出的分层几何挂上材质。
  *
  * - stage 变化会重建几何；卸载时 dispose，避免 GPU 泄漏
  * - FitCamera 仅首帧根据房子包围球对准轨道目标
- * - 墙体用 plaster PBR 贴图；屋顶用瓦片 PBR，且 DoubleSide（人字面无厚度）
- * - woodwork / glass / steps 与墙体分层，便于换材质而不改几何
+ * - 墙体用 plaster PBR；屋顶用瓦片 PBR（DoubleSide）
+ * - 无卡通描边，靠 PBR 与光照表现体积
+ * - woodwork / metalwork / glass / steps 分层换材质
  */
 import { useEffect, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
@@ -19,16 +20,6 @@ import {
 } from "@/lib/geoBuildings";
 import { useWallTextures } from "@/hooks/useWallTextures";
 import { useRoofTextures } from "@/hooks/useRoofTextures";
-
-function useEdges(
-  geometry: THREE.BufferGeometry | null,
-  thresholdAngle = 15,
-): THREE.EdgesGeometry | null {
-  return useMemo(() => {
-    if (!geometry) return null;
-    return new THREE.EdgesGeometry(geometry, thresholdAngle);
-  }, [geometry, thresholdAngle]);
-}
 
 function FitCamera({ sphere }: { sphere: THREE.Sphere | null }) {
   const { camera, controls } = useThree();
@@ -66,12 +57,9 @@ function disposeLayers(l: CityLayers | null) {
   l.walls?.dispose();
   l.roofs?.dispose();
   l.woodwork?.dispose();
+  l.metalwork?.dispose();
   l.glass?.dispose();
   l.steps?.dispose();
-}
-
-function disposeEdges(e: THREE.EdgesGeometry | null) {
-  e?.dispose();
 }
 
 type CitySceneProps = {
@@ -87,75 +75,75 @@ export function CityScene({ stage }: CitySceneProps) {
     return { layers: lyr, bounds: sphere };
   }, [stage]);
 
-  const roofEdges = useEdges(layers.roofs, 12);
-  const wallEdges = useEdges(layers.walls, 30);
-
   useEffect(() => {
     return () => disposeLayers(layers);
   }, [layers]);
 
-  useEffect(() => {
-    return () => {
-      disposeEdges(roofEdges);
-      disposeEdges(wallEdges);
-    };
-  }, [roofEdges, wallEdges]);
-
   const wallMat = (
     <meshStandardMaterial
       {...wallTextures}
-      color="#f5f3eb"
-      roughness={0.82}
+      color="#ebe6dc"
+      roughness={0.88}
       metalness={0.02}
-      normalScale={new THREE.Vector2(0.55, 0.55)}
-      envMapIntensity={0.45}
+      normalScale={new THREE.Vector2(0.75, 0.75)}
+      envMapIntensity={0.32}
     />
   );
   const roofMat = (
     <meshStandardMaterial
       {...roofTextures}
-      color="#e8884a"
-      roughness={0.78}
-      metalness={0.02}
-      normalScale={new THREE.Vector2(0.7, 0.7)}
-      envMapIntensity={0.4}
+      color="#b86a42"
+      roughness={0.82}
+      metalness={0.04}
+      normalScale={new THREE.Vector2(0.85, 0.85)}
+      envMapIntensity={0.35}
       side={THREE.DoubleSide}
     />
   );
   const baseMat = (
     <meshStandardMaterial
-      color="#8b9199"
-      roughness={0.78}
-      metalness={0.04}
-      envMapIntensity={0.25}
+      color="#7a818a"
+      roughness={0.9}
+      metalness={0.03}
+      envMapIntensity={0.2}
     />
   );
   const woodMat = (
     <meshStandardMaterial
-      color="#7c431f"
-      roughness={0.56}
-      metalness={0.05}
-      envMapIntensity={0.4}
+      color="#5a3a24"
+      roughness={0.72}
+      metalness={0.04}
+      envMapIntensity={0.28}
+    />
+  );
+  const metalMat = (
+    <meshStandardMaterial
+      color="#b08d3a"
+      roughness={0.35}
+      metalness={0.88}
+      envMapIntensity={0.75}
     />
   );
   const glassMat = (
     <meshPhysicalMaterial
-      color="#9eb3bf"
-      roughness={0.08}
-      metalness={0.02}
-      transmission={0.55}
-      thickness={0.2}
+      color="#8fa8b5"
+      roughness={0.05}
+      metalness={0}
+      transmission={0.82}
+      thickness={0.35}
+      ior={1.45}
       transparent
-      opacity={0.58}
-      envMapIntensity={0.75}
+      opacity={1}
+      envMapIntensity={1.1}
+      reflectivity={0.55}
     />
   );
   const stepMat = (
     <meshStandardMaterial
-      color="#c2c5ca"
-      roughness={0.86}
-      metalness={0.01}
-      envMapIntensity={0.25}
+      color="#aeb3b8"
+      roughness={0.92}
+      metalness={0.02}
+      envMapIntensity={0.18}
     />
   );
 
@@ -177,35 +165,14 @@ export function CityScene({ stage }: CitySceneProps) {
           {roofMat}
         </mesh>
       ) : null}
-      {roofEdges ? (
-        <lineSegments geometry={roofEdges} renderOrder={1}>
-          <lineBasicMaterial
-            color="#5a1d05"
-            transparent
-            opacity={0.55}
-            depthWrite={false}
-            polygonOffset
-            polygonOffsetFactor={-1}
-            polygonOffsetUnits={-1}
-          />
-        </lineSegments>
-      ) : null}
-      {wallEdges ? (
-        <lineSegments geometry={wallEdges} renderOrder={1}>
-          <lineBasicMaterial
-            color="#9a958a"
-            transparent
-            opacity={0.28}
-            depthWrite={false}
-            polygonOffset
-            polygonOffsetFactor={-1}
-            polygonOffsetUnits={-1}
-          />
-        </lineSegments>
-      ) : null}
       {layers.woodwork ? (
         <mesh geometry={layers.woodwork} castShadow receiveShadow>
           {woodMat}
+        </mesh>
+      ) : null}
+      {layers.metalwork ? (
+        <mesh geometry={layers.metalwork} castShadow receiveShadow>
+          {metalMat}
         </mesh>
       ) : null}
       {layers.glass ? (

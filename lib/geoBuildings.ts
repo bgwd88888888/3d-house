@@ -10,8 +10,9 @@
  * - foundations 地基
  * - walls      墙体 + 烟囱身（灰泥贴图）
  * - roofs      人字屋顶 + 烟囱顶盖
- * - woodwork   门框 / 窗框 / 窗台
- * - glass      窗玻璃
+ * - woodwork   门扇 / 门框 / 窗框 / 窗台
+ * - metalwork  门把手等五金
+ * - glass      窗玻璃 / 门上亮窗
  * - steps      门前台阶
  *
  * BuildStage 为教学用渐进建造：base → roof → door → windows → details。
@@ -32,6 +33,7 @@ export type CityLayers = {
   walls: THREE.BufferGeometry | null;
   roofs: THREE.BufferGeometry | null;
   woodwork: THREE.BufferGeometry | null;
+  metalwork: THREE.BufferGeometry | null;
   glass: THREE.BufferGeometry | null;
   steps: THREE.BufferGeometry | null;
 };
@@ -83,6 +85,7 @@ type LayerParts = {
   walls: THREE.BufferGeometry[];
   roofs: THREE.BufferGeometry[];
   woodwork: THREE.BufferGeometry[];
+  metalwork: THREE.BufferGeometry[];
   glass: THREE.BufferGeometry[];
   steps: THREE.BufferGeometry[];
 };
@@ -149,6 +152,7 @@ function emptyLayers(): LayerParts {
     walls: [],
     roofs: [],
     woodwork: [],
+    metalwork: [],
     glass: [],
     steps: [],
   };
@@ -410,32 +414,217 @@ function addRoofStage(layers: LayerParts, spec: HouseSpec): void {
   layers.roofs.push(makeGableRoof(spec));
 }
 
+/**
+ * 豪华正门：外贴脸框 + 嵌板门扇 + 上亮玻璃 + 铜把手。
+ * 门扇略凸出墙面，嵌板凹进，靠体积阴影做出层次。
+ */
 function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
-  const z = frontY(spec.width, spec.depth);
-  const center = new THREE.Vector3(
-    spec.door.offsetX,
-    spec.door.height * 0.5,
-    z + spec.door.depth * 0.5 + 0.03,
-  );
+  const wallZ = frontY(spec.width, spec.depth);
+  const W = spec.door.width;
+  const H = spec.door.height;
+  const D = Math.max(spec.door.depth, 0.22);
+  const cx = spec.door.offsetX;
+
+  // —— 门扇：几乎填满洞口，仅留 ~1.5cm reveal ——
+  const reveal = 0.015;
+  const leafW = W - reveal * 2;
+  const leafH = H - reveal * 2;
+  const leafD = D;
+  const leafBottom = reveal;
+  const leafY = leafBottom + leafH * 0.5;
+  const leafTop = leafBottom + leafH;
+  const leafZ = wallZ + leafD * 0.5 + 0.045;
+  const faceZ = leafZ + leafD * 0.5;
+
+  // —— 外框贴脸：厚立柱 + 深凸出墙面 ——
+  const caseT = 0.18;
+  const caseD = 0.36;
+  const caseZ = wallZ + caseD * 0.5 + 0.01;
+  const caseInnerW = leafW + reveal * 2;
+  const caseInnerH = leafTop + reveal;
+  const caseOuterW = caseInnerW + caseT * 2;
+  const postY = caseInnerH * 0.5;
+  const lintelY = caseInnerH + caseT * 0.5;
 
   layers.woodwork.push(
-    makeBox(spec.door.width, spec.door.height, spec.door.depth, center),
-  );
-  layers.woodwork.push(
     makeBox(
-      spec.door.width + 0.28,
-      spec.door.height + 0.24,
-      0.12,
-      center.clone().add(new THREE.Vector3(0, 0.05, -0.04)),
+      caseT,
+      caseInnerH,
+      caseD,
+      new THREE.Vector3(cx - caseInnerW * 0.5 - caseT * 0.5, postY, caseZ),
     ),
   );
   layers.woodwork.push(
     makeBox(
-      0.12,
-      0.12,
-      0.08,
-      center.clone().add(new THREE.Vector3(spec.door.width * 0.28, -0.12, -0.08)),
+      caseT,
+      caseInnerH,
+      caseD,
+      new THREE.Vector3(cx + caseInnerW * 0.5 + caseT * 0.5, postY, caseZ),
     ),
+  );
+  layers.woodwork.push(
+    makeBox(caseOuterW, caseT, caseD, new THREE.Vector3(cx, lintelY, caseZ)),
+  );
+  // 帽线：再向前一阶，正面剪影更硬
+  const capH = 0.08;
+  const capD = caseD + 0.08;
+  layers.woodwork.push(
+    makeBox(
+      caseOuterW + 0.08,
+      capH,
+      capD,
+      new THREE.Vector3(cx, lintelY + caseT * 0.5 + capH * 0.35, caseZ + 0.04),
+    ),
+  );
+
+  // —— 门扇底板 ——
+  layers.woodwork.push(
+    makeBox(leafW, leafH, leafD, new THREE.Vector3(cx, leafY, leafZ)),
+  );
+
+  // 凸起挺/档：≥12cm 朝 +Z，正面光下也要有硬边阴影
+  const stile = 0.17;
+  const rail = 0.16;
+  const raiseD = 0.12;
+  const raiseZ = faceZ + raiseD * 0.5;
+  const raisedFront = faceZ + raiseD;
+  const innerW = leafW - stile * 2;
+
+  layers.woodwork.push(
+    makeBox(
+      stile,
+      leafH,
+      raiseD,
+      new THREE.Vector3(cx - leafW * 0.5 + stile * 0.5, leafY, raiseZ),
+    ),
+  );
+  layers.woodwork.push(
+    makeBox(
+      stile,
+      leafH,
+      raiseD,
+      new THREE.Vector3(cx + leafW * 0.5 - stile * 0.5, leafY, raiseZ),
+    ),
+  );
+  layers.woodwork.push(
+    makeBox(
+      leafW,
+      rail,
+      raiseD,
+      new THREE.Vector3(cx, leafY + leafH * 0.5 - rail * 0.5, raiseZ),
+    ),
+  );
+  layers.woodwork.push(
+    makeBox(
+      leafW,
+      rail,
+      raiseD,
+      new THREE.Vector3(cx, leafY - leafH * 0.5 + rail * 0.5, raiseZ),
+    ),
+  );
+
+  // 锁档：分隔上亮窗与下双嵌板（约 58%）
+  const lockRailH = rail * 1.25;
+  const lockRailY = leafY - leafH * 0.5 + leafH * 0.58;
+  layers.woodwork.push(
+    makeBox(innerW + stile * 0.25, lockRailH, raiseD, new THREE.Vector3(cx, lockRailY, raiseZ)),
+  );
+
+  // —— 上亮：整块清晰玻璃 + 粗棂（无碎格子）——
+  const liteBottom = lockRailY + lockRailH * 0.5;
+  const liteTop = leafY + leafH * 0.5 - rail;
+  const liteH = Math.max(liteTop - liteBottom, 0.22);
+  const liteMidY = (liteTop + liteBottom) * 0.5;
+  const muntin = 0.075;
+  // 粗十字棂：正面可读，但不切成密格
+  layers.woodwork.push(
+    makeBox(muntin, liteH, raiseD, new THREE.Vector3(cx, liteMidY, raiseZ)),
+  );
+  layers.woodwork.push(
+    makeBox(innerW, muntin, raiseD, new THREE.Vector3(cx, liteMidY, raiseZ)),
+  );
+  // 玻璃深凹在亮窗井底，粗棂投下清晰剪影
+  const glassRecess = 0.1;
+  layers.glass.push(
+    makeBox(
+      innerW * 0.94,
+      liteH * 0.9,
+      0.045,
+      new THREE.Vector3(cx, liteMidY, raisedFront - glassRecess),
+    ),
+  );
+
+  // —— 下半：经典双嵌板（仅 2 块，极深井）——
+  const midStile = 0.14;
+  const panelTop = lockRailY - lockRailH * 0.5;
+  const panelBottom = leafY - leafH * 0.5 + rail;
+  const panelZoneH = panelTop - panelBottom;
+  const panelMidY = (panelTop + panelBottom) * 0.5;
+  layers.woodwork.push(
+    makeBox(midStile, panelZoneH, raiseD, new THREE.Vector3(cx, panelMidY, raiseZ)),
+  );
+
+  const gap = 0.035;
+  const cellW = (innerW - midStile) * 0.5 - gap;
+  const cellH = panelZoneH - gap * 2;
+  // 嵌板井底：相对凸起面后退 ≥10cm
+  const wellBehind = 0.1;
+  const wellFront = raisedFront - wellBehind;
+  // 三阶台阶：AO 暗底 → 外凹环 → 内凸心（正面剪影）
+  const aoD = 0.035;
+  const ringD = 0.05;
+  const fieldD = 0.055;
+  const ringInset = 0.04;
+  const fieldInset = 0.09;
+  const aoZ = wellFront - aoD * 0.5;
+  const ringZ = wellFront + ringD * 0.5 + 0.012;
+  const fieldZ = wellFront + fieldD * 0.5 + 0.038;
+  const panelXs = [
+    cx - (midStile * 0.5 + gap * 0.5 + cellW * 0.5),
+    cx + (midStile * 0.5 + gap * 0.5 + cellW * 0.5),
+  ];
+
+  for (const px of panelXs) {
+    // AO 暗底：井底最深处，正面光下呈暗矩形
+    layers.woodwork.push(
+      makeBox(cellW * 0.98, cellH * 0.98, aoD, new THREE.Vector3(px, panelMidY, aoZ)),
+    );
+    // 外凹环（bevel step）
+    layers.woodwork.push(
+      makeBox(
+        cellW - ringInset * 2,
+        cellH - ringInset * 2,
+        ringD,
+        new THREE.Vector3(px, panelMidY, ringZ),
+      ),
+    );
+    // 内凸心板
+    layers.woodwork.push(
+      makeBox(
+        cellW - fieldInset * 2,
+        cellH - fieldInset * 2,
+        fieldD,
+        new THREE.Vector3(px, panelMidY, fieldZ),
+      ),
+    );
+  }
+
+  // —— 铜把手：厚背板 + 长杠杆，正面剪影更强 ——
+  const handleX = cx + leafW * 0.36;
+  const handleY = lockRailY - 0.12;
+  const plateZ = faceZ + raiseD * 0.55;
+  layers.metalwork.push(
+    makeBox(0.12, 0.34, 0.045, new THREE.Vector3(handleX, handleY, plateZ)),
+  );
+  layers.metalwork.push(
+    makeBox(0.05, 0.05, 0.09, new THREE.Vector3(handleX, handleY, plateZ + 0.055)),
+  );
+  const leverZ = plateZ + 0.095;
+  layers.metalwork.push(
+    makeBox(0.22, 0.042, 0.05, new THREE.Vector3(handleX + 0.06, handleY, leverZ)),
+  );
+  layers.metalwork.push(
+    makeBox(0.06, 0.06, 0.065, new THREE.Vector3(handleX + 0.16, handleY, leverZ + 0.01)),
   );
 }
 
@@ -615,6 +804,7 @@ export function buildHouseLayers(
     walls: mergeLayer(layers.walls),
     roofs: mergeLayer(layers.roofs),
     woodwork: mergeLayer(layers.woodwork),
+    metalwork: mergeLayer(layers.metalwork),
     glass: mergeLayer(layers.glass),
     steps: mergeLayer(layers.steps),
   };
