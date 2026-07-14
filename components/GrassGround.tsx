@@ -15,7 +15,7 @@ const GRASS_SIZE = 1100;
 const GRASS_TILE_METERS = 3.4;
 const GRASS_GROUND_Y = -0.04;
 const GRASS_SEGMENTS = 96;
-const GRASS_NORMAL_SCALE = new THREE.Vector2(0.55, 0.55);
+const GRASS_NORMAL_SCALE = new THREE.Vector2(0.85, 0.85);
 
 export function GrassGround() {
   const textures = useGrassTextures();
@@ -41,11 +41,11 @@ export function GrassGround() {
         map={textures.map}
         normalMap={textures.normalMap}
         roughnessMap={textures.roughnessMap}
-        color="#9db888"
-        roughness={0.95}
+        color="#7f9268"
+        roughness={0.97}
         metalness={0}
         normalScale={GRASS_NORMAL_SCALE}
-        envMapIntensity={0.22}
+        envMapIntensity={0.14}
       />
     </mesh>
   );
