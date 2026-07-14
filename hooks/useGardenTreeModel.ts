@@ -1,13 +1,20 @@
 "use client";
 
+/**
+ * Quaternius 庭院树：Common / Pine（带树皮法线）。
+ * 材质压饱和、提高粗糙度，减轻低模卡通感。
+ */
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
 export const GARDEN_TREE_MODELS = {
-  birchOne: "/models/quaternius-birch/BirchTree_1.gltf",
-  birchThree: "/models/quaternius-birch/BirchTree_3.gltf",
-  birchFive: "/models/quaternius-birch/BirchTree_5.gltf",
+  commonOne: "/models/quaternius-trees/common1.glb",
+  commonTwo: "/models/quaternius-trees/common2.glb",
+  commonThree: "/models/quaternius-trees/common3.glb",
+  pineOne: "/models/quaternius-trees/pine1.glb",
+  pineTwo: "/models/quaternius-trees/pine2.glb",
+  pineThree: "/models/quaternius-trees/pine3.glb",
 } as const;
 
 function cloneTreeMaterial(source: THREE.Material): THREE.Material {
@@ -15,16 +22,25 @@ function cloneTreeMaterial(source: THREE.Material): THREE.Material {
   if (!(material instanceof THREE.MeshStandardMaterial)) return material;
 
   material.metalness = 0;
-  if (material.name.includes("Leaves")) {
-    material.alphaTest = 0.35;
+  const name = material.name.toLowerCase();
+  if (name.includes("leaf") || name.includes("leaves") || name.includes("pine")) {
+    material.color.multiplyScalar(0.78).lerp(new THREE.Color("#5c6b3e"), 0.35);
+    material.alphaTest = 0.4;
     material.depthWrite = true;
-    material.envMapIntensity = 0.08;
-    material.roughness = 0.92;
+    material.envMapIntensity = 0.18;
+    material.roughness = 0.96;
     material.side = THREE.DoubleSide;
     material.transparent = false;
+    if (material.normalMap) {
+      material.normalScale = new THREE.Vector2(0.7, 0.7);
+    }
   } else {
-    material.envMapIntensity = 0.12;
-    material.roughness = 0.86;
+    material.color.multiplyScalar(0.9).lerp(new THREE.Color("#8a7a68"), 0.15);
+    material.envMapIntensity = 0.16;
+    material.roughness = 0.92;
+    if (material.normalMap) {
+      material.normalScale = new THREE.Vector2(1.15, 1.15);
+    }
   }
   return material;
 }

@@ -2,7 +2,8 @@
 
 import { useGardenTreeModel } from "@/hooks/useGardenTreeModel";
 
-const TREE_MODEL_SCALE = 0.72;
+/** Quaternius Common/Pine 约 7–10m 高，略缩小以贴合庭院 */
+const TREE_MODEL_SCALE = 0.95;
 
 export type GardenTreeProps = {
   modelUrl: string;
