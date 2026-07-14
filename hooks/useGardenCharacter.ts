@@ -1,103 +1,128 @@
 "use client";
 
-import { useAnimations, useFBX, useTexture } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo } from "react";
+/**
+ * Quaternius 庭院角色：GLB 自带 Idle / Walk / Run。
+ * 走动时播 Walk（庭院漫步），静止播 Idle。
+ */
+import { useAnimations, useGLTF } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 
-const CHARACTER_MODEL_URL =
-  "/models/kenney-protagonists/characterMedium.fbx";
-const CHARACTER_IDLE_URL = "/models/kenney-protagonists/idle.fbx";
-const IDLE_ANIMATION_NAME = "Root|Idle";
-
-export const KENNEY_CHARACTER_SKINS = {
-  criminalMale: "/models/kenney-protagonists/skins/criminalMaleA.png",
-  cyborgFemale: "/models/kenney-protagonists/skins/cyborgFemaleA.png",
-  skaterFemale: "/models/kenney-protagonists/skins/skaterFemaleA.png",
-  skaterMale: "/models/kenney-protagonists/skins/skaterMaleA.png",
+export const GARDEN_CHARACTER_MODELS = {
+  beach: "/models/quaternius-characters/beach.glb",
+  casual: "/models/quaternius-characters/casual.glb",
+  farmer: "/models/quaternius-characters/farmer.glb",
+  hoodie: "/models/quaternius-characters/hoodie.glb",
+  woman: "/models/quaternius-characters/woman.glb",
+  worker: "/models/quaternius-characters/worker.glb",
 } as const;
+
+const IDLE_NAMES = [
+  "CharacterArmature|Idle",
+  "CharacterArmature|Idle_Neutral",
+  "Idle",
+] as const;
+
+const WALK_NAMES = [
+  "CharacterArmature|Walk",
+  "Walk",
+] as const;
 
 type GardenCharacterOptions = {
   animationOffset: number;
   animationSpeed: number;
-  skinUrl: string;
+  modelUrl: string;
+  /** 外部走动状态；true 时播 walk，false 播 idle */
+  isMovingRef?: MutableRefObject<boolean>;
 };
 
-function createCharacterMaterial(skin: THREE.Texture): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    map: skin,
-    color: 0xffffff,
-    roughness: 0.72,
-    metalness: 0,
-    envMapIntensity: 0.16,
-  });
+function pickAction(
+  actions: Record<string, THREE.AnimationAction | null>,
+  names: readonly string[],
+): THREE.AnimationAction | null {
+  for (const name of names) {
+    const action = actions[name];
+    if (action) return action;
+  }
+  return null;
 }
 
-function disposeCharacterMaterials(character: THREE.Group): void {
-  character.traverse((object) => {
+function prepareCharacterMaterials(root: THREE.Object3D): void {
+  root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
+    object.castShadow = true;
+    object.receiveShadow = true;
     const materials = Array.isArray(object.material)
       ? object.material
       : [object.material];
-    for (const material of materials) material.dispose();
+    for (const material of materials) {
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      // 略压亮、提高粗糙，减少塑料玩具反光
+      material.color.multiplyScalar(0.92);
+      material.envMapIntensity = 0.3;
+      material.roughness = Math.min(0.94, Math.max(0.55, material.roughness + 0.12));
+      material.metalness = Math.min(0.05, material.metalness);
+    }
   });
 }
 
 export function useGardenCharacter({
   animationOffset,
   animationSpeed,
-  skinUrl,
+  modelUrl,
+  isMovingRef,
 }: GardenCharacterOptions): THREE.Group {
-  const sourceCharacter = useFBX(CHARACTER_MODEL_URL);
-  const idleAnimation = useFBX(CHARACTER_IDLE_URL);
-  const skin = useTexture(skinUrl);
-  const maxAnisotropy = useThree(({ gl }) =>
-    Math.min(gl.capabilities.getMaxAnisotropy(), 8),
-  );
-
-  useLayoutEffect(() => {
-    for (const texture of [skin]) {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = maxAnisotropy;
-      texture.needsUpdate = true;
-    }
-  }, [maxAnisotropy, skin]);
+  const { scene, animations } = useGLTF(modelUrl);
+  const wasMovingRef = useRef(false);
 
   const character = useMemo(() => {
-    const clone = SkeletonUtils.clone(sourceCharacter) as THREE.Group;
-    clone.traverse((object) => {
-      if (!(object instanceof THREE.SkinnedMesh)) return;
-      object.material = createCharacterMaterial(skin);
-      object.castShadow = true;
-      object.receiveShadow = true;
-    });
+    const clone = SkeletonUtils.clone(scene) as THREE.Group;
+    prepareCharacterMaterials(clone);
     return clone;
-  }, [skin, sourceCharacter]);
+  }, [scene]);
 
-  const { actions, mixer } = useAnimations(idleAnimation.animations, character);
+  const { actions, mixer } = useAnimations(animations, character);
 
   useEffect(() => {
-    const idleAction = actions[IDLE_ANIMATION_NAME];
+    const idleAction = pickAction(actions, IDLE_NAMES);
+    const walkAction = pickAction(actions, WALK_NAMES);
     if (!idleAction) return;
 
-    idleAction.reset().setEffectiveTimeScale(animationSpeed).play();
+    idleAction.reset().setEffectiveTimeScale(animationSpeed).fadeIn(0.15).play();
     mixer.setTime(idleAction.getClip().duration * animationOffset);
+    walkAction?.setEffectiveTimeScale(0.95 * animationSpeed);
+    wasMovingRef.current = false;
 
     return () => {
       idleAction.stop();
+      walkAction?.stop();
     };
   }, [actions, animationOffset, animationSpeed, mixer]);
 
-  useEffect(() => {
-    return () => disposeCharacterMaterials(character);
-  }, [character]);
+  useFrame(() => {
+    if (!isMovingRef) return;
+    const moving = isMovingRef.current;
+    if (moving === wasMovingRef.current) return;
+    wasMovingRef.current = moving;
+
+    const idleAction = pickAction(actions, IDLE_NAMES);
+    const walkAction = pickAction(actions, WALK_NAMES);
+    if (!idleAction || !walkAction) return;
+
+    if (moving) {
+      idleAction.fadeOut(0.2);
+      walkAction.reset().fadeIn(0.2).play();
+    } else {
+      walkAction.fadeOut(0.2);
+      idleAction.reset().fadeIn(0.25).play();
+    }
+  });
 
   return character;
 }
 
-useFBX.preload(CHARACTER_MODEL_URL);
-useFBX.preload(CHARACTER_IDLE_URL);
-for (const skinUrl of Object.values(KENNEY_CHARACTER_SKINS)) {
-  useTexture.preload(skinUrl);
+for (const modelUrl of Object.values(GARDEN_CHARACTER_MODELS)) {
+  useGLTF.preload(modelUrl);
 }
