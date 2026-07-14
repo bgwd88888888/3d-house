@@ -1,26 +1,34 @@
 "use client";
 
 /**
- * 院子草地：以 PBR 草坪贴图为主，形成柔软地毯感。
- * 不再使用尖锥草叶实例（远看像刺）；靠法线/位移表现细草起伏。
+ * 院子草地：大范围 PBR 草坪，铺满视野直至雾效远处，像连续地面。
+ * 靠法线表现细草起伏；大平面关闭强位移，避免远距离网格起伏失真。
  * Y 略低于 0，避免与地基 Z-fighting。
  */
+import { useLayoutEffect } from "react";
 import * as THREE from "three";
 import { useGrassTextures } from "@/hooks/useGrassTextures";
 
-const GRASS_WIDTH = 44;
-const GRASS_DEPTH = 36;
+/** 覆盖到雾效之外，旋转拉远时也看不到灰边 */
+const GRASS_SIZE = 1100;
+/** 贴图在世界中的平铺边长（米） */
+const GRASS_TILE_METERS = 3.4;
 const GRASS_GROUND_Y = -0.04;
-const GRASS_GEOMETRY_ARGS: [number, number, number, number] = [
-  GRASS_WIDTH,
-  GRASS_DEPTH,
-  128,
-  104,
-];
-const GRASS_NORMAL_SCALE = new THREE.Vector2(0.72, 0.72);
+const GRASS_SEGMENTS = 96;
+const GRASS_NORMAL_SCALE = new THREE.Vector2(0.55, 0.55);
 
 export function GrassGround() {
   const textures = useGrassTextures();
+  const repeat = GRASS_SIZE / GRASS_TILE_METERS;
+
+  useLayoutEffect(() => {
+    for (const texture of Object.values(textures)) {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(repeat, repeat);
+      texture.needsUpdate = true;
+    }
+  }, [repeat, textures]);
 
   return (
     <mesh
@@ -28,15 +36,15 @@ export function GrassGround() {
       position={[0, GRASS_GROUND_Y, 0]}
       receiveShadow
     >
-      <planeGeometry args={GRASS_GEOMETRY_ARGS} />
+      <planeGeometry args={[GRASS_SIZE, GRASS_SIZE, GRASS_SEGMENTS, GRASS_SEGMENTS]} />
       <meshStandardMaterial
-        {...textures}
+        map={textures.map}
+        normalMap={textures.normalMap}
+        roughnessMap={textures.roughnessMap}
         color="#9db888"
         roughness={0.95}
         metalness={0}
         normalScale={GRASS_NORMAL_SCALE}
-        displacementScale={0.045}
-        displacementBias={-0.018}
         envMapIntensity={0.22}
       />
     </mesh>

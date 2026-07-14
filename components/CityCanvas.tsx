@@ -5,16 +5,17 @@
  *
  * 组装关系：
  * - CityScene     程序化房子（随 stage 渐进建造）
- * - GrassGround   草地平面 + 草叶实例
+ * - GrassGround   大范围草坪地面（铺满视野）
  * - GardenPeople  庭院人物（Kenney 角色 + 精灵）
  * - GardenTrees   桦树模型摆放
+ * - GardenPickup  门口皮卡（Kenney Car Kit）
  *
- * 大地面平面在草地之下；Grid 仅作空间参考，可绕房子旋转观察。
+ * 草坪本身即地面；不再另铺灰底板 / 网格，避免露出「院子方块」边界。
  *
  * 光照：户外天空感（Sky + park HDR + 蓝天半球光 + 暖色太阳光），避免 studio 室内光。
  */
 import { Canvas } from "@react-three/fiber";
-import { Environment, Grid, OrbitControls, Sky } from "@react-three/drei";
+import { Environment, OrbitControls, Sky } from "@react-three/drei";
 import { Suspense } from "react";
 import * as THREE from "three";
 import type { BuildStage } from "@/lib/geoBuildings";
@@ -22,6 +23,7 @@ import { CityScene } from "./CityScene";
 import { GrassGround } from "./GrassGround";
 import { GardenPeople } from "./GardenPeople";
 import { GardenTrees } from "./GardenTrees";
+import { GardenPickup } from "./GardenPickup";
 
 /** 太阳方向（与 Sky / 主平行光共用，保证天空与投影一致） */
 const SUN_POSITION: [number, number, number] = [72, 58, 36];
@@ -46,9 +48,9 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         gl.shadowMap.type = THREE.PCFSoftShadowMap;
       }}
     >
-      {/* 浅天蓝底，Sky 罩在上面 */}
+      {/* 浅天蓝底，Sky 罩在上面；雾与远草坪衔接 */}
       <color attach="background" args={["#c8daf0"]} />
-      <fog attach="fog" args={["#c8daf0", 180, 520]} />
+      <fog attach="fog" args={["#c8daf0", 220, 680]} />
 
       <Sky
         sunPosition={SUN_POSITION}
@@ -89,19 +91,6 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
         <CityScene stage={stage} />
       </Suspense>
 
-      {/* 无限感浅灰地面（草地之下） */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>
-        <planeGeometry args={[2400, 2400]} />
-        <meshStandardMaterial
-          color="#dfe6ee"
-          roughness={0.96}
-          metalness={0}
-          polygonOffset
-          polygonOffsetFactor={1}
-          polygonOffsetUnits={1}
-        />
-      </mesh>
-
       <Suspense fallback={null}>
         <GrassGround />
       </Suspense>
@@ -111,17 +100,9 @@ export function CityCanvas({ className, stage }: CityCanvasProps) {
       <Suspense fallback={null}>
         <GardenTrees />
       </Suspense>
-
-      <Grid
-        infiniteGrid
-        fadeDistance={420}
-        fadeStrength={1.2}
-        cellSize={6}
-        sectionSize={42}
-        position={[0, -0.06, 0]}
-        sectionColor="#b8c2d0"
-        cellColor="#ccd4de"
-      />
+      <Suspense fallback={null}>
+        <GardenPickup />
+      </Suspense>
 
       <OrbitControls
         makeDefault
