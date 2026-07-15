@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * 草原风格积云：小块白团、近中远疏密分布；晴天投淡软云影。
+ * 天空云层：颜色随天气变化；绕场景中心环形慢转，分布更散。
  */
 import { Cloud, Clouds } from "@react-three/drei";
-import { useMemo } from "react";
-import { MeshBasicMaterial } from "three";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import { MeshBasicMaterial, type Group } from "three";
 import type { WeatherPreset } from "@/lib/weatherPresets";
 
-/** 不受雾/色调映射影响，保持干净亮白 */
 class CleanCloudMaterial extends MeshBasicMaterial {
   constructor() {
     super({
@@ -35,29 +35,53 @@ type CloudSpec = {
   shadow?: boolean;
 };
 
-/** 俯视时落在地平线上方天空带：高度偏低、半径推远 */
-const CLOUD_LAYOUT: readonly CloudSpec[] = [
-  // 中远：略低、离房子更远
-  { seed: 11, position: [140, 52, 95], scale: 4.2, volume: 5.5, segments: 22, bounds: [2.4, 1.8, 2.4], shadow: true },
-  { seed: 13, position: [-130, 48, 110], scale: 3.8, volume: 5, segments: 20, bounds: [2.2, 1.7, 2.2], shadow: true },
-  { seed: 17, position: [120, 55, -145], scale: 4.5, volume: 5.8, segments: 22, bounds: [2.5, 1.9, 2.5], shadow: true },
-  { seed: 19, position: [-115, 50, -130], scale: 3.6, volume: 4.8, segments: 18, bounds: [2.1, 1.6, 2.1], shadow: true },
-  { seed: 23, position: [180, 58, -70], scale: 5, volume: 6, segments: 22, bounds: [2.6, 1.7, 2.6], shadow: true },
-  { seed: 29, position: [-170, 54, 90], scale: 4.6, volume: 5.6, segments: 20, bounds: [2.5, 1.65, 2.5], shadow: true },
-  { seed: 31, position: [-80, 60, -185], scale: 5.2, volume: 6.2, segments: 22, bounds: [2.7, 1.75, 2.7] },
-  { seed: 37, position: [155, 56, 165], scale: 4.8, volume: 5.8, segments: 20, bounds: [2.55, 1.7, 2.55] },
-  // 更远、更贴地平线
-  { seed: 47, position: [250, 62, -120], scale: 6.2, volume: 4.4, segments: 16, bounds: [4.0, 0.95, 1.9] },
-  { seed: 53, position: [-240, 58, -175], scale: 6, volume: 4.2, segments: 16, bounds: [3.9, 0.9, 1.85] },
-  { seed: 59, position: [-220, 64, 230], scale: 6.5, volume: 4.5, segments: 16, bounds: [4.2, 0.95, 1.95] },
-  { seed: 61, position: [230, 60, 210], scale: 6.1, volume: 4.3, segments: 16, bounds: [4.0, 0.92, 1.9] },
-  { seed: 67, position: [40, 66, -280], scale: 6.8, volume: 4.6, segments: 16, bounds: [4.4, 1.0, 2.0] },
-  { seed: 71, position: [-50, 62, 290], scale: 6.4, volume: 4.4, segments: 16, bounds: [4.2, 0.95, 1.95] },
-  { seed: 79, position: [300, 56, 55], scale: 5.6, volume: 3.9, segments: 14, bounds: [3.6, 0.85, 1.7] },
-  { seed: 83, position: [-290, 58, 70], scale: 5.4, volume: 3.8, segments: 14, bounds: [3.5, 0.85, 1.65] },
-  { seed: 89, position: [90, 64, 270], scale: 5.8, volume: 4.1, segments: 14, bounds: [3.8, 0.9, 1.8] },
-  { seed: 97, position: [-95, 60, -270], scale: 5.7, volume: 4, segments: 14, bounds: [3.7, 0.88, 1.75] },
-];
+/** 多圈、多方位铺开，避免挤成一条远环或全飘走 */
+function buildCloudLayout(): CloudSpec[] {
+  const rings = [
+    { radius: 95, y: 48, count: 5, scale: 3.6, volume: 4.8, segments: 18, shadow: true },
+    { radius: 150, y: 54, count: 6, scale: 4.2, volume: 5.4, segments: 20, shadow: true },
+    { radius: 210, y: 58, count: 7, scale: 5.0, volume: 5.0, segments: 16, shadow: false },
+    { radius: 280, y: 62, count: 6, scale: 5.8, volume: 4.2, segments: 14, shadow: false },
+  ] as const;
+
+  const clouds: CloudSpec[] = [];
+  let seed = 11;
+
+  for (const ring of rings) {
+    for (let i = 0; i < ring.count; i += 1) {
+      // 各圈错开相位，看起来更散
+      const angle =
+        (i / ring.count) * Math.PI * 2 +
+        ring.radius * 0.01 +
+        (seed % 5) * 0.17;
+      const jitterR = ((seed * 13) % 17) * 0.35 - 3;
+      const r = ring.radius + jitterR;
+      const x = Math.cos(angle) * r;
+      const z = Math.sin(angle) * r;
+      const y = ring.y + ((seed * 7) % 9) * 0.35 - 1.2;
+      const flat = ring.radius > 200;
+      clouds.push({
+        seed,
+        position: [x, y, z],
+        scale: ring.scale + ((seed % 5) - 2) * 0.12,
+        volume: ring.volume,
+        segments: ring.segments,
+        bounds: flat
+          ? [3.8, 0.9, 1.8]
+          : [2.3, 1.7, 2.3],
+        shadow: ring.shadow && i % 2 === 0,
+      });
+      seed += 2;
+    }
+  }
+
+  return clouds;
+}
+
+const CLOUD_LAYOUT = buildCloudLayout();
+
+/** 角速度：rad/s，再乘 preset.cloudSpeed 做天气差异 */
+const ORBIT_BASE = 0.012;
 
 function projectCloudShadow(
   cloudPos: readonly [number, number, number],
@@ -73,25 +97,35 @@ function projectCloudShadow(
 }
 
 export function SkyClouds({ preset }: SkyCloudsProps) {
+  const orbitRef = useRef<Group>(null);
+
   const shadows = useMemo(() => {
     if (!preset.cloudShadows) return [];
     return CLOUD_LAYOUT.filter((c) => c.shadow).map((cloud) => {
       const pos = projectCloudShadow(cloud.position, preset.sunPosition);
-      const size = cloud.scale * 1.8;
+      const size = cloud.scale * 1.7;
       return {
         key: `shadow-${cloud.seed}`,
         position: pos,
-        scale: [size * 1.25, size * 0.9] as [number, number],
+        scale: [size * 1.2, size * 0.85] as [number, number],
       };
     });
   }, [preset.cloudShadows, preset.sunPosition]);
 
+  useFrame((_, delta) => {
+    const group = orbitRef.current;
+    if (!group) return;
+    // cloudSpeed 约 1~2：折成很慢的环形角速度
+    group.rotation.y += ORBIT_BASE * (preset.cloudSpeed / 1.4) * delta;
+  });
+
   return (
-    <>
+    <group ref={orbitRef}>
       <Clouds
+        key={preset.cloudColor}
         material={CleanCloudMaterial}
         frustumCulled={false}
-        limit={420}
+        limit={480}
       >
         {CLOUD_LAYOUT.map((cloud) => (
           <Cloud
@@ -105,9 +139,9 @@ export function SkyClouds({ preset }: SkyCloudsProps) {
             concentrate="inside"
             smallestVolume={0.35}
             opacity={Math.min(1, preset.cloudOpacity)}
-            color="#ffffff"
-            speed={preset.cloudSpeed}
-            growth={2.8}
+            color={preset.cloudColor}
+            speed={0.06}
+            growth={2.2}
             fade={260}
           />
         ))}
@@ -124,12 +158,12 @@ export function SkyClouds({ preset }: SkyCloudsProps) {
             <meshBasicMaterial
               color="#2a3320"
               transparent
-              opacity={0.12}
+              opacity={0.1}
               depthWrite={false}
             />
           </mesh>
         </group>
       ))}
-    </>
+    </group>
   );
 }

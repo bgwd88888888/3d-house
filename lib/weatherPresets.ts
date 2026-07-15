@@ -35,6 +35,7 @@ export type WeatherPreset = {
   envIntensity: number;
   cloudOpacity: number;
   cloudColor: string;
+  /** 云层环形转速系数（约 1~2，越大转越快） */
   cloudSpeed: number;
   /** 是否在地面画软云影 */
   cloudShadows: boolean;
@@ -65,7 +66,7 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
     envIntensity: 0.45,
     cloudOpacity: 1,
     cloudColor: "#ffffff",
-    cloudSpeed: 0.04,
+    cloudSpeed: 1.4,
     cloudShadows: true,
   },
   cloudy: {
@@ -89,9 +90,9 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
     faceFillIntensity: 0.4,
     faceFillColor: "#c5d0dc",
     envIntensity: 0.45,
-    cloudOpacity: 0.75,
-    cloudColor: "#e4e8ee",
-    cloudSpeed: 0.12,
+    cloudOpacity: 0.88,
+    cloudColor: "#b0bbc8",
+    cloudSpeed: 2.1,
     cloudShadows: false,
   },
   dusk: {
@@ -115,9 +116,9 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
     faceFillIntensity: 0.22,
     faceFillColor: "#ffd0b0",
     envIntensity: 0.38,
-    cloudOpacity: 0.6,
-    cloudColor: "#ffd0b8",
-    cloudSpeed: 0.08,
+    cloudOpacity: 0.9,
+    cloudColor: "#e09a72",
+    cloudSpeed: 1.0,
     cloudShadows: true,
   },
 };
