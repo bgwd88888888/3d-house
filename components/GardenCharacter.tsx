@@ -16,6 +16,8 @@ export type GardenCharacterProps = {
   scale: number;
   /** 随机种子，保证各角色轨迹不同 */
   wanderSeed?: number;
+  /** 离家最远距离（合院内可放大） */
+  homeRadius?: number;
 };
 
 export function GardenCharacter({
@@ -26,12 +28,13 @@ export function GardenCharacter({
   rotation,
   scale,
   wanderSeed = 1,
+  homeRadius = 12,
 }: GardenCharacterProps) {
   const { groupRef, isMovingRef } = useWanderMovement({
     home: position,
     initialRotation: rotation,
     speed: 1.05 + (wanderSeed % 5) * 0.07,
-    homeRadius: 7.2,
+    homeRadius,
     seed: wanderSeed,
   });
 

@@ -208,28 +208,7 @@ export function GardenPond() {
       },
     ];
 
-    const plants: Placed[] = [
-      {
-        object: assets.catTails[0],
-        position: [-2.15, 0, 0.6],
-        rotationY: 0.2,
-        scale: 1.15,
-      },
-      {
-        object: assets.catTails[1],
-        position: [-1.85, 0, 1.05],
-        rotationY: -0.35,
-        scale: 1,
-      },
-      {
-        object: assets.mint,
-        position: [1.65, 0, 1.2],
-        rotationY: 0.7,
-        scale: 1.1,
-      },
-    ];
-
-    return { rocks, pebbles, lilies, plants };
+    return { rocks, pebbles, lilies };
   }, [assets]);
 
   return (
@@ -250,9 +229,6 @@ export function GardenPond() {
       ))}
       {placements.lilies.map((item, index) => (
         <PlacedAsset key={`lily-${index}`} {...item} />
-      ))}
-      {placements.plants.map((item, index) => (
-        <PlacedAsset key={`plant-${index}`} {...item} />
       ))}
     </group>
   );

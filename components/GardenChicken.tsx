@@ -15,6 +15,7 @@ export type GardenChickenProps = {
   scale: number;
   /** 随机种子，保证各鸡轨迹不同 */
   wanderSeed?: number;
+  homeRadius?: number;
 };
 
 export function GardenChicken({
@@ -24,13 +25,14 @@ export function GardenChicken({
   rotation,
   scale,
   wanderSeed = 1,
+  homeRadius = 6,
 }: GardenChickenProps) {
   const { groupRef, isMovingRef } = useWanderMovement({
     home: position,
     initialRotation: rotation,
     // 略慢一点，让 Walk 步伐跟得上位移
     speed: 0.42 + (wanderSeed % 7) * 0.04,
-    homeRadius: 4.5,
+    homeRadius,
     agentRadius: 0.28,
     seed: wanderSeed,
   });

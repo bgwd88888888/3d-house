@@ -41,7 +41,7 @@ export function GrassGround() {
         map={textures.map}
         normalMap={textures.normalMap}
         roughnessMap={textures.roughnessMap}
-        color="#7f9268"
+        color="#6f8a58"
         roughness={0.97}
         metalness={0}
         normalScale={GRASS_NORMAL_SCALE}

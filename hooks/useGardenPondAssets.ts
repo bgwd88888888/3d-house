@@ -2,7 +2,8 @@
 
 /**
  * AssetQuest Free Lowpoly Pond Kit（CC0）：FBX 网格。
- * 盆体用套件调色板；石块用 ambientCG 岩石 PBR；植物用套件图集。
+ * 盆体用套件调色板；石块用 ambientCG 岩石 PBR；睡莲用套件图集。
+ * 不含香蒲/薄荷：其广告牌网格在俯视下会糊成色卡。
  */
 import { useTexture } from "@react-three/drei";
 import { useLoader } from "@react-three/fiber";
@@ -21,9 +22,6 @@ export const POND_ASSET_URLS = {
   lilyLeaf2: "/models/assetquest-pond/meshes/Water_Lily_Leaf_2.fbx",
   lilyLeaf3: "/models/assetquest-pond/meshes/Water_Lily_Leaf_3.fbx",
   lilyBlossom: "/models/assetquest-pond/meshes/Water_Lily_Blossom_1.fbx",
-  catTail1: "/models/assetquest-pond/meshes/CatTail_1.fbx",
-  catTail2: "/models/assetquest-pond/meshes/CatTail_2.fbx",
-  mint: "/models/assetquest-pond/meshes/Water_Mint_1.fbx",
 } as const;
 
 const PROP_MAP = "/models/assetquest-pond/textures/Pond_Props_BaseColor.png";
@@ -104,8 +102,6 @@ export type GardenPondAssets = {
   pebbles: THREE.Group[];
   lilyLeaves: THREE.Group[];
   lilyBlossom: THREE.Group;
-  catTails: THREE.Group[];
-  mint: THREE.Group;
 };
 
 export function useGardenPondAssets(): GardenPondAssets {
@@ -119,9 +115,6 @@ export function useGardenPondAssets(): GardenPondAssets {
   const lily2Src = usePondFbx(POND_ASSET_URLS.lilyLeaf2);
   const lily3Src = usePondFbx(POND_ASSET_URLS.lilyLeaf3);
   const blossomSrc = usePondFbx(POND_ASSET_URLS.lilyBlossom);
-  const cat1Src = usePondFbx(POND_ASSET_URLS.catTail1);
-  const cat2Src = usePondFbx(POND_ASSET_URLS.catTail2);
-  const mintSrc = usePondFbx(POND_ASSET_URLS.mint);
 
   const { propMap, plantMap } = useTexture({
     propMap: PROP_MAP,
@@ -130,7 +123,6 @@ export function useGardenPondAssets(): GardenPondAssets {
   const rockMaps = useTexture(ROCK_URLS);
 
   useLayoutEffect(() => {
-    // 套件 UV 按 DCC 习惯，关闭 flipY
     propMap.colorSpace = THREE.SRGBColorSpace;
     propMap.flipY = false;
     propMap.needsUpdate = true;
@@ -206,22 +198,14 @@ export function useGardenPondAssets(): GardenPondAssets {
         clonePrepared(lily3Src, plantMaterial, 0.88),
       ],
       lilyBlossom: clonePrepared(blossomSrc, plantMaterial, 0.5),
-      catTails: [
-        clonePrepared(cat1Src, plantMaterial, 0.85),
-        clonePrepared(cat2Src, plantMaterial, 0.75),
-      ],
-      mint: clonePrepared(mintSrc, plantMaterial, 0.6),
     };
   }, [
     basinMaterial,
     basinSrc,
     blossomSrc,
-    cat1Src,
-    cat2Src,
     lily1Src,
     lily2Src,
     lily3Src,
-    mintSrc,
     pebble1Src,
     pebble2Src,
     plantMaterial,
@@ -238,8 +222,6 @@ export function useGardenPondAssets(): GardenPondAssets {
       for (const pebble of assets.pebbles) disposeObjectMaterials(pebble);
       for (const leaf of assets.lilyLeaves) disposeObjectMaterials(leaf);
       disposeObjectMaterials(assets.lilyBlossom);
-      for (const cat of assets.catTails) disposeObjectMaterials(cat);
-      disposeObjectMaterials(assets.mint);
     };
   }, [assets]);
 

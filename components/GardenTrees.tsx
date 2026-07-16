@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * 庭院树木摆放表（Quaternius Common / Pine，带树皮与叶贴图）。
- * 围在草地边缘一圈，避免挡住房子正面观察角度。
+ * 合院内外树木：后园、侧院与门前点景（Quaternius）。
  */
 import { GARDEN_TREE_MODELS } from "@/hooks/useGardenTreeModel";
 import { GardenTree, type GardenTreeProps } from "./GardenTree";
@@ -13,68 +12,67 @@ type GardenTreePlacement = GardenTreeProps & {
 
 const GARDEN_TREES: readonly GardenTreePlacement[] = [
   {
-    id: "northwest-one",
-    modelUrl: GARDEN_TREE_MODELS.commonOne,
-    position: [-16, -0.03, -10],
-    scale: 1.05,
-    rotation: 0.4,
-  },
-  {
-    id: "west-center",
-    modelUrl: GARDEN_TREE_MODELS.pineThree,
-    position: [-17, -0.03, 3],
-    scale: 0.92,
-    rotation: 1.3,
-  },
-  {
-    id: "southwest-small",
-    modelUrl: GARDEN_TREE_MODELS.commonTwo,
-    position: [-13, -0.03, 12],
-    scale: 0.88,
-    rotation: 2.1,
-  },
-  {
-    id: "south-center",
-    modelUrl: GARDEN_TREE_MODELS.commonThree,
-    position: [-5, -0.03, 14],
-    scale: 0.82,
-    rotation: 0.8,
-  },
-  {
-    id: "southeast-large",
+    id: "rear-garden-pine",
     modelUrl: GARDEN_TREE_MODELS.pineOne,
-    // 原 [8,14] 挡门前与皮卡视野；挪到更靠右后的空地
-    position: [16.2, -0.03, 12.4],
-    scale: 1.08,
-    rotation: 1.8,
+    position: [0, -0.03, -20],
+    scale: 1.05,
+    rotation: 0.6,
   },
   {
-    id: "east-small",
-    modelUrl: GARDEN_TREE_MODELS.commonTwo,
-    position: [17, -0.03, 8],
-    scale: 0.9,
-    rotation: 2.7,
-  },
-  {
-    id: "east-center",
-    modelUrl: GARDEN_TREE_MODELS.pineTwo,
-    position: [17, -0.03, -4],
-    scale: 1.02,
-    rotation: 0.2,
-  },
-  {
-    id: "northeast-small",
+    id: "rear-west",
     modelUrl: GARDEN_TREE_MODELS.commonOne,
-    position: [13, -0.03, -13],
-    scale: 0.84,
-    rotation: 1.1,
+    position: [-20, -0.03, -18],
+    scale: 0.95,
+    rotation: 1.2,
   },
   {
-    id: "north-center",
+    id: "rear-east",
+    modelUrl: GARDEN_TREE_MODELS.commonTwo,
+    position: [19, -0.03, -17],
+    scale: 0.92,
+    rotation: 2.0,
+  },
+  {
+    id: "fourth-west",
+    modelUrl: GARDEN_TREE_MODELS.pineTwo,
+    position: [-12, -0.03, -8],
+    scale: 0.88,
+    rotation: 0.3,
+  },
+  {
+    id: "fourth-east",
     modelUrl: GARDEN_TREE_MODELS.commonThree,
-    position: [-7, -0.03, -14],
-    scale: 0.95,
+    position: [14, -0.03, -8],
+    scale: 0.9,
+    rotation: 1.7,
+  },
+  {
+    id: "third-west",
+    modelUrl: GARDEN_TREE_MODELS.pineThree,
+    position: [-18, -0.03, 8],
+    scale: 0.85,
     rotation: 2.4,
+  },
+  {
+    id: "second-east",
+    modelUrl: GARDEN_TREE_MODELS.commonOne,
+    position: [18, -0.03, 12],
+    scale: 0.86,
+    rotation: 0.9,
+  },
+  {
+    id: "gate-west",
+    modelUrl: GARDEN_TREE_MODELS.commonTwo,
+    position: [-15, -0.03, 22],
+    scale: 0.8,
+    rotation: 1.5,
+  },
+  {
+    id: "gate-east",
+    modelUrl: GARDEN_TREE_MODELS.commonThree,
+    position: [15, -0.03, 22],
+    scale: 0.82,
+    rotation: 2.8,
   },
 ];
 
