@@ -2,7 +2,7 @@
 
 /**
  * 3D 场景根 Canvas：灯光 / 环境 / 地面 / 房子 / 庭院装饰 / 轨道相机。
- * 晴空用 PrairieSky 蓝穹；含小路、人物、树、皮卡与池塘。
+ * 晴空用 PrairieSky 蓝穹；含小路、人物、鸡、树、皮卡与池塘。
  */
 import { Canvas, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
@@ -18,6 +18,7 @@ import { CityScene } from "./CityScene";
 import { GrassGround } from "./GrassGround";
 import { GardenPath } from "./GardenPath";
 import { GardenPeople } from "./GardenPeople";
+import { GardenChickens } from "./GardenChickens";
 import { GardenTrees } from "./GardenTrees";
 import { GardenPickup } from "./GardenPickup";
 import { GardenPond } from "./GardenPond";
@@ -127,6 +128,9 @@ export function CityCanvas({
         <GardenPeople />
       </Suspense>
       <Suspense fallback={null}>
+        <GardenChickens />
+      </Suspense>
+      <Suspense fallback={null}>
         <GardenTrees />
       </Suspense>
       <Suspense fallback={null}>
@@ -141,7 +145,7 @@ export function CityCanvas({
         enableDamping
         dampingFactor={0.08}
         maxPolarAngle={Math.PI / 2 - 0.02}
-        minDistance={18}
+        minDistance={4}
         maxDistance={900}
         target={[0, 14, 0]}
       />

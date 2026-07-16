@@ -53,15 +53,16 @@ function prepareCharacterMaterials(root: THREE.Object3D): void {
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     object.castShadow = true;
-    object.receiveShadow = true;
+    // 不接收地面/树影，避免小人在阴影里糊成剪影
+    object.receiveShadow = false;
     const materials = Array.isArray(object.material)
       ? object.material
       : [object.material];
     for (const material of materials) {
       if (!(material instanceof THREE.MeshStandardMaterial)) continue;
-      // 略压亮、提高粗糙，减少塑料玩具反光
-      material.color.multiplyScalar(0.92);
-      material.envMapIntensity = 0.3;
+      // 提亮 albedo、吃一点环境光，阴影里仍能看清衣色
+      material.color.multiplyScalar(1.18);
+      material.envMapIntensity = 0.65;
       material.roughness = Math.min(0.94, Math.max(0.55, material.roughness + 0.12));
       material.metalness = Math.min(0.05, material.metalness);
     }
