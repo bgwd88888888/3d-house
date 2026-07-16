@@ -30,21 +30,21 @@ function FitCamera({ sphere }: { sphere: THREE.Sphere }) {
 
   useEffect(() => {
     if (done.current) return;
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+
     const orbit = controls as {
       target?: THREE.Vector3;
       update?: () => void;
     } | null;
-    if (!(camera instanceof THREE.PerspectiveCamera)) return;
 
-    orbit?.target?.set(0, 3.5, 2);
-    const dist = sphere.radius / Math.sin(((camera.fov * Math.PI) / 180) / 2);
-    const eye = new THREE.Vector3(0.85, 0.55, 1.05)
-      .normalize()
-      .multiplyScalar(dist * 0.95);
-    camera.position.copy(new THREE.Vector3(0, 3.5, 2).add(eye));
+    const target = new THREE.Vector3(0, 1.2, 0);
+    orbit?.target?.copy(target);
+    // 固定南高俯视，避免贴门
+    camera.position.set(0, 95, 78);
+    camera.lookAt(target);
     /* eslint-disable react-hooks/immutability */
-    camera.near = Math.max(dist / 600, 0.2);
-    camera.far = Math.max(dist * 30, 2500);
+    camera.near = 0.2;
+    camera.far = Math.max(sphere.radius * 40, 2500);
     /* eslint-enable react-hooks/immutability */
     camera.updateProjectionMatrix();
     orbit?.update?.();
@@ -97,11 +97,11 @@ export function CourtyardCompound() {
         <mesh geometry={layers.roofs} castShadow receiveShadow>
           <meshStandardMaterial
             {...roofTextures}
-            color="#4a4e54"
-            roughness={0.86}
-            metalness={0.05}
-            normalScale={new THREE.Vector2(0.7, 0.7)}
-            envMapIntensity={0.3}
+            color="#d8dce2"
+            roughness={0.82}
+            metalness={0.03}
+            normalScale={new THREE.Vector2(1.05, 1.05)}
+            envMapIntensity={0.36}
             side={THREE.DoubleSide}
           />
         </mesh>

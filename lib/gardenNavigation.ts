@@ -3,7 +3,8 @@
  */
 import {
   buildCompoundObstacles,
-  COMPOUND_HALF,
+  COMPOUND_HALF_X,
+  COMPOUND_HALF_Z,
   KOI_POND_OBSTACLE,
   ROCKERY_OBSTACLE,
 } from "@/lib/geoCompound";
@@ -46,10 +47,10 @@ const COTTAGE_BOUNDS: SoftBounds = {
 };
 
 const COURTYARD_BOUNDS: SoftBounds = {
-  minX: -(COMPOUND_HALF - 1.2),
-  maxX: COMPOUND_HALF - 1.2,
-  minZ: -(COMPOUND_HALF - 1.2),
-  maxZ: COMPOUND_HALF - 1.2,
+  minX: -(COMPOUND_HALF_X - 1.2),
+  maxX: COMPOUND_HALF_X - 1.2,
+  minZ: -(COMPOUND_HALF_Z - 1.2),
+  maxZ: COMPOUND_HALF_Z - 1.2,
 };
 
 const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
@@ -91,15 +92,15 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
 ];
 
 const COURTYARD_TREE_OBSTACLES: readonly CircleObstacle[] = [
-  { kind: "circle", x: -20, z: -18, radius: 1.5 },
-  { kind: "circle", x: 19, z: -17, radius: 1.45 },
-  { kind: "circle", x: -18, z: 8, radius: 1.35 },
-  { kind: "circle", x: 18, z: 12, radius: 1.4 },
-  { kind: "circle", x: -12, z: -8, radius: 1.3 },
-  { kind: "circle", x: 14, z: -8, radius: 1.35 },
-  { kind: "circle", x: 0, z: -20, radius: 1.5 },
-  { kind: "circle", x: -15, z: 22, radius: 1.25 },
-  { kind: "circle", x: 15, z: 22, radius: 1.25 },
+  { kind: "circle", x: -7, z: -20, radius: 1.4 },
+  { kind: "circle", x: 6, z: -22, radius: 1.3 },
+  { kind: "circle", x: -2, z: -16, radius: 1.25 },
+  { kind: "circle", x: -8, z: -5, radius: 1.25 },
+  { kind: "circle", x: 8, z: -6, radius: 1.25 },
+  { kind: "circle", x: -7.5, z: 8.5, radius: 1.2 },
+  { kind: "circle", x: 7.5, z: 8, radius: 1.2 },
+  { kind: "circle", x: -7, z: 24, radius: 1.15 },
+  { kind: "circle", x: 7, z: 23.5, radius: 1.15 },
 ];
 
 const COURTYARD_OBSTACLES: readonly GardenObstacle[] = [

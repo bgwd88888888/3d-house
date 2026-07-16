@@ -29,6 +29,8 @@ import { CottageGardenPeople } from "./CottageGardenPeople";
 import { CottageGardenChickens } from "./CottageGardenChickens";
 import { CottageGardenTrees } from "./CottageGardenTrees";
 import { ChineseGardenFeatures } from "./ChineseGardenFeatures";
+import { CourtyardEntrance } from "./CourtyardEntrance";
+import { CourtyardWallMurals } from "./CourtyardWallMurals";
 import { GardenPeople } from "./GardenPeople";
 import { GardenChickens } from "./GardenChickens";
 import { GardenTrees } from "./GardenTrees";
@@ -135,6 +137,12 @@ function CourtyardDecor() {
         <ChineseGardenFeatures />
       </Suspense>
       <Suspense fallback={null}>
+        <CourtyardEntrance />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CourtyardWallMurals />
+      </Suspense>
+      <Suspense fallback={null}>
         <GardenPeople />
       </Suspense>
       <Suspense fallback={null}>
@@ -147,6 +155,13 @@ function CourtyardDecor() {
   );
 }
 
+const DEFAULT_CAMERA = {
+  position: [0, 95, 78] as [number, number, number],
+  fov: 42,
+  near: 0.2,
+  far: 2500,
+};
+
 export function CityCanvas({
   className,
   stage,
@@ -155,14 +170,15 @@ export function CityCanvas({
 }: CityCanvasProps) {
   const preset = WEATHER_PRESETS[weather];
   const orbitTarget: [number, number, number] =
-    scene === "cottage" ? [0, 14, 0] : [0, 3.5, 2];
-  const minDistance = scene === "cottage" ? 4 : 12;
-  const maxDistance = scene === "cottage" ? 900 : 220;
+    scene === "cottage" ? [0, 14, 0] : [0, 1.2, 0];
+  const minDistance = scene === "cottage" ? 4 : 10;
+  const maxDistance = scene === "cottage" ? 900 : 320;
 
   return (
     <Canvas
       className={className}
       shadows
+      camera={DEFAULT_CAMERA}
       gl={{
         antialias: true,
         alpha: false,

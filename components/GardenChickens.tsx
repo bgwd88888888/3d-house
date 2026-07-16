@@ -15,7 +15,7 @@ type GardenHen = GardenChickenProps & {
 const GARDEN_CHICKENS: readonly GardenHen[] = [
   {
     id: "first-a",
-    position: [-5, -0.02, 23.5],
+    position: [-5, -0.02, 22],
     rotation: 0.4,
     scale: 0.075,
     animationOffset: 0.12,
@@ -25,7 +25,7 @@ const GARDEN_CHICKENS: readonly GardenHen[] = [
   },
   {
     id: "first-b",
-    position: [4.5, -0.02, 23],
+    position: [4.5, -0.02, 21.5],
     rotation: -1.1,
     scale: 0.07,
     animationOffset: 0.48,
@@ -35,13 +35,13 @@ const GARDEN_CHICKENS: readonly GardenHen[] = [
   },
   {
     id: "rear-garden",
-    position: [-2, -0.02, -11],
+    position: [-2, -0.02, -18],
     rotation: Math.PI * 0.7,
     scale: 0.072,
     animationOffset: 0.22,
     animationSpeed: 1.08,
     wanderSeed: 64,
-    homeRadius: 8,
+    homeRadius: 7,
   },
 ];
 
