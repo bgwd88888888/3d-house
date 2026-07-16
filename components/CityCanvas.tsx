@@ -2,7 +2,7 @@
 
 /**
  * 3D 场景根 Canvas：灯光 / 环境 / 地面 / 房子 / 庭院装饰 / 轨道相机。
- * 晴空用 PrairieSky 蓝穹（俯视仍保持钴蓝），天气预设驱动灯光与雾。
+ * 晴空用 PrairieSky 蓝穹；含小路、人物、树、皮卡与池塘。
  */
 import { Canvas, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
@@ -20,6 +20,7 @@ import { GardenPath } from "./GardenPath";
 import { GardenPeople } from "./GardenPeople";
 import { GardenTrees } from "./GardenTrees";
 import { GardenPickup } from "./GardenPickup";
+import { GardenPond } from "./GardenPond";
 import { PrairieSky } from "./PrairieSky";
 import { SkyClouds } from "./SkyClouds";
 
@@ -130,6 +131,9 @@ export function CityCanvas({
       </Suspense>
       <Suspense fallback={null}>
         <GardenPickup />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenPond />
       </Suspense>
 
       <OrbitControls
