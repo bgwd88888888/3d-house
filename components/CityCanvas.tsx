@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * 3D 场景根 Canvas：灯光 / 环境 / 地面 / 房子 / 庭院装饰 / 轨道相机。
- * 晴空用 PrairieSky 蓝穹；含小路、人物、鸡、树、皮卡与池塘。
+ * 3D 场景根 Canvas：共用天空/天气/草地；建筑场景可切换。
  */
 import { Canvas, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
@@ -14,21 +13,31 @@ import {
   WEATHER_PRESETS,
   type WeatherKind,
 } from "@/lib/weatherPresets";
+import {
+  DEFAULT_SCENE,
+  type SceneKind,
+} from "@/lib/sceneKinds";
+import { setActiveGardenScene } from "@/lib/gardenNavigation";
 import { CityScene } from "./CityScene";
 import { GrassGround } from "./GrassGround";
+import { PrairieSky } from "./PrairieSky";
+import { SkyClouds } from "./SkyClouds";
 import { GardenPath } from "./GardenPath";
+import { GardenPond } from "./GardenPond";
+import { GardenPickup } from "./GardenPickup";
+import { CottageGardenPeople } from "./CottageGardenPeople";
+import { CottageGardenChickens } from "./CottageGardenChickens";
+import { CottageGardenTrees } from "./CottageGardenTrees";
+import { ChineseGardenFeatures } from "./ChineseGardenFeatures";
 import { GardenPeople } from "./GardenPeople";
 import { GardenChickens } from "./GardenChickens";
 import { GardenTrees } from "./GardenTrees";
-import { GardenPickup } from "./GardenPickup";
-import { GardenPond } from "./GardenPond";
-import { PrairieSky } from "./PrairieSky";
-import { SkyClouds } from "./SkyClouds";
 
 type CityCanvasProps = {
   className?: string;
   stage: BuildStage;
   weather?: WeatherKind;
+  scene?: SceneKind;
 };
 
 function WeatherAtmosphere({ weather }: { weather: WeatherKind }) {
@@ -64,11 +73,11 @@ function WeatherAtmosphere({ weather }: { weather: WeatherKind }) {
         color={preset.sunColor}
         position={preset.sunPosition}
         shadow-mapSize={[4096, 4096]}
-        shadow-camera-far={360}
-        shadow-camera-left={-120}
-        shadow-camera-right={120}
-        shadow-camera-top={120}
-        shadow-camera-bottom={-120}
+        shadow-camera-far={420}
+        shadow-camera-left={-140}
+        shadow-camera-right={140}
+        shadow-camera-top={140}
+        shadow-camera-bottom={-140}
         shadow-radius={8}
         shadow-bias={-0.00012}
         shadow-normalBias={0.04}
@@ -87,12 +96,68 @@ function WeatherAtmosphere({ weather }: { weather: WeatherKind }) {
   );
 }
 
+function SceneNavSync({ scene }: { scene: SceneKind }) {
+  useEffect(() => {
+    setActiveGardenScene(scene);
+  }, [scene]);
+  return null;
+}
+
+function CottageDecor() {
+  return (
+    <>
+      <Suspense fallback={null}>
+        <GardenPath />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenPond />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenPickup />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CottageGardenPeople />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CottageGardenChickens />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CottageGardenTrees />
+      </Suspense>
+    </>
+  );
+}
+
+function CourtyardDecor() {
+  return (
+    <>
+      <Suspense fallback={null}>
+        <ChineseGardenFeatures />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenPeople />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenChickens />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GardenTrees />
+      </Suspense>
+    </>
+  );
+}
+
 export function CityCanvas({
   className,
   stage,
   weather = DEFAULT_WEATHER,
+  scene = DEFAULT_SCENE,
 }: CityCanvasProps) {
   const preset = WEATHER_PRESETS[weather];
+  const orbitTarget: [number, number, number] =
+    scene === "cottage" ? [0, 14, 0] : [0, 3.5, 2];
+  const minDistance = scene === "cottage" ? 4 : 12;
+  const maxDistance = scene === "cottage" ? 900 : 220;
 
   return (
     <Canvas
@@ -108,6 +173,7 @@ export function CityCanvas({
         gl.shadowMap.type = THREE.PCFSoftShadowMap;
       }}
     >
+      <SceneNavSync scene={scene} />
       <WeatherAtmosphere weather={weather} />
 
       <Suspense fallback={null}>
@@ -115,39 +181,24 @@ export function CityCanvas({
           preset="park"
           environmentIntensity={preset.envIntensity}
         />
-        <CityScene stage={stage} />
+        <CityScene stage={stage} scene={scene} />
       </Suspense>
 
       <Suspense fallback={null}>
         <GrassGround />
       </Suspense>
-      <Suspense fallback={null}>
-        <GardenPath />
-      </Suspense>
-      <Suspense fallback={null}>
-        <GardenPeople />
-      </Suspense>
-      <Suspense fallback={null}>
-        <GardenChickens />
-      </Suspense>
-      <Suspense fallback={null}>
-        <GardenTrees />
-      </Suspense>
-      <Suspense fallback={null}>
-        <GardenPickup />
-      </Suspense>
-      <Suspense fallback={null}>
-        <GardenPond />
-      </Suspense>
+
+      {scene === "cottage" ? <CottageDecor /> : <CourtyardDecor />}
 
       <OrbitControls
+        key={scene}
         makeDefault
         enableDamping
         dampingFactor={0.08}
         maxPolarAngle={Math.PI / 2 - 0.02}
-        minDistance={4}
-        maxDistance={900}
-        target={[0, 14, 0]}
+        minDistance={minDistance}
+        maxDistance={maxDistance}
+        target={orbitTarget}
       />
     </Canvas>
   );
