@@ -43,7 +43,8 @@ const GARDEN_TREES: readonly GardenTreePlacement[] = [
   {
     id: "southeast-large",
     modelUrl: GARDEN_TREE_MODELS.pineOne,
-    position: [8, -0.03, 14],
+    // 原 [8,14] 挡门前与皮卡视野；挪到更靠右后的空地
+    position: [16.2, -0.03, 12.4],
     scale: 1.08,
     rotation: 1.8,
   },

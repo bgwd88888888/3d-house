@@ -1,6 +1,6 @@
 /**
  * 庭院寻路辅助：障碍物与可走区域（XZ 平面）。
- * 人物随机走动时避开房子、台阶、树、皮卡，并限制离家距离。
+ * 人物/鸡随机走动时避开房子、台阶、树、皮卡、池塘，并限制离家距离。
  */
 
 export type Vec2 = { x: number; z: number };
@@ -64,12 +64,19 @@ export const GARDEN_OBSTACLES: readonly GardenObstacle[] = [
     z: 4.2,
     radius: 2.9,
   },
+  // 东南侧池塘（AssetQuest 盆体约 5m 宽）
+  {
+    kind: "circle",
+    x: 11.2,
+    z: 10.4,
+    radius: 3.0,
+  },
   // 树木（Common / Pine，按树干与近地冠幅）
   { kind: "circle", x: -16, z: -10, radius: 1.55 },
   { kind: "circle", x: -17, z: 3, radius: 1.7 },
   { kind: "circle", x: -13, z: 12, radius: 1.4 },
   { kind: "circle", x: -5, z: 14, radius: 1.65 },
-  { kind: "circle", x: 8, z: 14, radius: 1.75 },
+  { kind: "circle", x: 16.2, z: 12.4, radius: 1.75 },
   { kind: "circle", x: 17, z: 8, radius: 1.45 },
   { kind: "circle", x: 17, z: -4, radius: 1.6 },
   { kind: "circle", x: 13, z: -13, radius: 1.35 },
