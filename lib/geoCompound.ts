@@ -89,6 +89,13 @@ export const COMPOUND_LANDMARKS = {
   koiPond: { x: 7.5, z: -17.5 },
 } as const;
 
+/** 东西厢房朝院内门位（每进一扇） */
+const WING_DOOR_ZS = [
+  (COMPOUND_LANDMARKS.arch1.z + COMPOUND_LANDMARKS.arch2.z) * 0.5,
+  (COMPOUND_LANDMARKS.arch2.z + COMPOUND_LANDMARKS.arch3.z) * 0.5,
+  (COMPOUND_LANDMARKS.arch3.z + COMPOUND_LANDMARKS.mainHall.z) * 0.5,
+] as const;
+
 export const KOI_POND_OBSTACLE = {
   kind: "circle" as const,
   x: COMPOUND_LANDMARKS.koiPond.x,
@@ -257,6 +264,79 @@ function addGableRoof(
   }
 }
 
+/**
+ * 围墙 / 隔墙压顶瓦：矮双坡瓦顶 + 木色檐口，增加层次。
+ * axis "x"：墙沿东西向（脊线平行 X）；"z"：墙沿南北向。
+ */
+function addWallTileCoping(
+  parts: Parts,
+  cx: number,
+  cz: number,
+  length: number,
+  wallT: number,
+  wallTopY: number,
+  axis: "x" | "z" = "x",
+): void {
+  if (length < 1.2) return;
+  const eaves = wallT + 0.38;
+  const roofH = 0.62;
+  // 木色压檐条，托住瓦顶
+  if (axis === "x") {
+    parts.woodwork.push(
+      box(length + 0.15, 0.14, eaves, cx, wallTopY + 0.07, cz),
+    );
+    addGableRoof(parts, cx, wallTopY + 0.12, cz, length, eaves, roofH, "z");
+  } else {
+    parts.woodwork.push(
+      box(eaves, 0.14, length + 0.15, cx, wallTopY + 0.07, cz),
+    );
+    addGableRoof(parts, cx, wallTopY + 0.12, cz, eaves, length, roofH, "x");
+  }
+}
+
+/**
+ * 院内侧木门：门扇 + 门框（正房南立面 / 厢房内立面共用）。
+ * widthAxis "x"：门宽沿 X（正房朝南）；"z"：门宽沿 Z（厢房朝院）。
+ */
+function addCourtyardDoor(
+  parts: Parts,
+  cx: number,
+  cz: number,
+  widthAxis: "x" | "z",
+  outward: 1 | -1,
+): void {
+  const doorW = 1.7;
+  const doorH = 2.75;
+  const leafT = 0.12;
+  const y = FOUNDATION_H + doorH * 0.5;
+
+  if (widthAxis === "x") {
+    // 门扇朝 ±Z
+    parts.woodwork.push(box(doorW, doorH, leafT, cx, y, cz));
+    parts.woodwork.push(
+      box(doorW + 0.28, 0.18, 0.14, cx, FOUNDATION_H + doorH + 0.08, cz + outward * 0.02),
+    );
+    parts.woodwork.push(
+      box(0.16, doorH, 0.14, cx - doorW * 0.5, y, cz + outward * 0.02),
+    );
+    parts.woodwork.push(
+      box(0.16, doorH, 0.14, cx + doorW * 0.5, y, cz + outward * 0.02),
+    );
+  } else {
+    // 门扇朝 ±X
+    parts.woodwork.push(box(leafT, doorH, doorW, cx, y, cz));
+    parts.woodwork.push(
+      box(0.14, 0.18, doorW + 0.28, cx + outward * 0.02, FOUNDATION_H + doorH + 0.08, cz),
+    );
+    parts.woodwork.push(
+      box(0.14, doorH, 0.16, cx + outward * 0.02, y, cz - doorW * 0.5),
+    );
+    parts.woodwork.push(
+      box(0.14, doorH, 0.16, cx + outward * 0.02, y, cz + doorW * 0.5),
+    );
+  }
+}
+
 function addHall(
   parts: Parts,
   cz: number,
@@ -270,6 +350,7 @@ function addHall(
   const doorFace = options?.doorFace ?? "south";
   const doorZ =
     doorFace === "south" ? cz + depth * 0.5 + 0.05 : cz - depth * 0.5 - 0.05;
+  const outward: 1 | -1 = doorFace === "south" ? 1 : -1;
 
   parts.foundations.push(
     box(width + 0.4, FOUNDATION_H, depth + 0.4, 0, FOUNDATION_H * 0.5, cz),
@@ -278,17 +359,8 @@ function addHall(
   addGableRoof(parts, 0, FOUNDATION_H + height, cz, width, depth, roofH);
 
   if (options?.door !== false) {
-    const doorW = options?.main ? 2.8 : 2.1;
-    const doorH = options?.main ? 3.6 : 2.9;
-    parts.woodwork.push(
-      box(doorW + 0.35, 0.22, 0.28, 0, FOUNDATION_H + doorH + 0.1, doorZ),
-    );
-    parts.woodwork.push(
-      box(0.22, doorH, 0.28, -doorW * 0.5, FOUNDATION_H + doorH * 0.5, doorZ),
-    );
-    parts.woodwork.push(
-      box(0.22, doorH, 0.28, doorW * 0.5, FOUNDATION_H + doorH * 0.5, doorZ),
-    );
+    // 与东西厢房同款木门（不再用空门框）
+    addCourtyardDoor(parts, 0, doorZ, "x", outward);
   }
 
   const winY = FOUNDATION_H + height * 0.55;
@@ -324,19 +396,21 @@ function addWingSegment(
     ROOF_H * 0.85,
     "x",
   );
-  const inward = -xSign;
+  const inward = -xSign as 1 | -1;
+  const faceX = cx + inward * (WING_DEPTH * 0.5 + 0.02);
+  const doorClear = 2.0;
+  for (const wz of WING_DOOR_ZS) {
+    if (wz <= Math.min(z0, z1) + 1.2 || wz >= Math.max(z0, z1) - 1.2) continue;
+    addCourtyardDoor(parts, faceX, wz, "z", inward);
+  }
+
+  // 窗：避开门洞
   const winCount = Math.max(1, Math.floor(depth / 4.2));
   for (let i = 0; i < winCount; i += 1) {
     const wz = z0 + ((i + 0.5) / winCount) * (z1 - z0);
+    if (WING_DOOR_ZS.some((dz) => Math.abs(wz - dz) < doorClear)) continue;
     parts.woodwork.push(
-      box(
-        0.12,
-        1.35,
-        1.45,
-        cx + inward * (WING_DEPTH * 0.5 + 0.02),
-        FOUNDATION_H + height * 0.52,
-        wz,
-      ),
+      box(0.12, 1.35, 1.45, faceX, FOUNDATION_H + height * 0.52, wz),
     );
   }
 }
@@ -368,6 +442,11 @@ function addPerimeter(parts: Parts): void {
   parts.walls.push(box(sideW + 0.15, footH, footT, southFootX, footY, southZ));
   parts.walls.push(box(sideW, h, t, -southFootX, y, southZ));
   parts.walls.push(box(sideW, h, t, southFootX, y, southZ));
+
+  // 南墙两侧压顶瓦（门楼已有屋顶，不覆盖）
+  const wallTopY = FOUNDATION_H + h;
+  addWallTileCoping(parts, -southFootX, southZ, sideW, t, wallTopY, "x");
+  addWallTileCoping(parts, southFootX, southZ, sideW, t, wallTopY, "x");
 
   // 大气门楼
   const pierW = 1.85;
@@ -449,36 +528,73 @@ function addScreenWall(parts: Parts): void {
   addGableRoof(parts, x, FOUNDATION_H + 3.95, z, 9.6, 1.4, 1.15);
 }
 
+/** 隔墙拱门净宽（与障碍/导航共用）；拱顶须低于墙顶压檐 */
+const ARCH_OPEN_W = 3.4;
+/** 起拱线高度；半圆拱半径 = 净宽/2，总高约 3.3，墙顶留白约 0.8 */
+const ARCH_SPRING_H = 1.6;
+
 /**
- * 拱门隔墙：左右实墙 + 上方过梁，中开干净门洞（无叠块穿模）。
+ * 拱门隔墙：整墙挤出 + 半圆拱门洞（拱顶低于压檐瓦）。
  */
 function addArchWall(parts: Parts, cz: number): void {
   const wallWidth = ARCH_WALL_W;
   const wallH = 4.1;
   const wallT = 0.55;
-  const y = FOUNDATION_H + wallH * 0.5;
-  const openW = 4.8;
-  const openH = 3.45;
-  const side = (wallWidth - openW) * 0.5;
+  const openW = ARCH_OPEN_W;
+  const archR = openW * 0.5;
+  const springH = ARCH_SPRING_H;
+  // 拱顶点到墙顶至少留 0.55，避免压檐瓦穿模
+  const maxPeak = wallH - 0.55;
+  const peak = springH + archR;
+  const scale = peak > maxPeak ? maxPeak / peak : 1;
+  const r = archR * scale;
+  const spring = springH * scale;
   const wallTop = FOUNDATION_H + wallH;
-  const lintelH = wallH - openH;
+  const hw = wallWidth * 0.5;
+  const oh = openW * 0.5 * scale;
 
-  // 左右实墙接到厢房（全高）
-  parts.walls.push(box(side, wallH, wallT, -(openW * 0.5 + side * 0.5), y, cz));
-  parts.walls.push(box(side, wallH, wallT, openW * 0.5 + side * 0.5, y, cz));
+  const shape = new THREE.Shape();
+  shape.moveTo(-hw, 0);
+  shape.lineTo(hw, 0);
+  shape.lineTo(hw, wallH);
+  shape.lineTo(-hw, wallH);
+  shape.closePath();
 
-  // 门洞上方过梁（与左右墙齐平对接，不重叠）
-  parts.walls.push(
-    box(openW, lintelH, wallT, 0, FOUNDATION_H + openH + lintelH * 0.5, cz),
-  );
+  // 门洞：竖框 + 半圆拱（孔洞反向绕序）
+  const hole = new THREE.Path();
+  hole.moveTo(-oh, 0);
+  hole.lineTo(oh, 0);
+  hole.lineTo(oh, spring);
+  hole.absarc(0, spring, r, 0, Math.PI, false);
+  hole.lineTo(-oh, 0);
+  shape.holes.push(hole);
 
-  // 压顶条：整段在墙顶之上
-  parts.walls.push(box(wallWidth + 0.2, 0.18, wallT + 0.16, 0, wallTop + 0.1, cz));
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: wallT,
+    bevelEnabled: false,
+    curveSegments: 24,
+  });
+  geo.translate(0, FOUNDATION_H, cz - wallT * 0.5);
+  geo.computeVertexNormals();
+  parts.walls.push(geo);
 
-  // 木色门楣（贴在过梁南立面外侧，不插入墙体）
+  // 木色门框：两侧立柱 + 半圆拱券
+  const faceZ = cz + wallT * 0.5 + 0.05;
+  const postH = spring + 0.06;
   parts.woodwork.push(
-    box(openW * 0.9, 0.22, 0.1, 0, FOUNDATION_H + openH + 0.2, cz + wallT * 0.5 + 0.06),
+    box(0.18, postH, 0.12, -oh, FOUNDATION_H + postH * 0.5, faceZ),
   );
+  parts.woodwork.push(
+    box(0.18, postH, 0.12, oh, FOUNDATION_H + postH * 0.5, faceZ),
+  );
+  {
+    const torus = new THREE.TorusGeometry(r, 0.08, 6, 28, Math.PI);
+    torus.translate(0, FOUNDATION_H + spring, faceZ);
+    parts.woodwork.push(torus);
+  }
+
+  // 隔墙顶压檐瓦
+  addWallTileCoping(parts, 0, cz, wallWidth + 0.25, wallT, wallTop, "x");
 }
 
 function addCourtyardFloors(parts: Parts): void {
@@ -533,6 +649,35 @@ export function buildCompoundLayers(): CompoundLayers {
   addWingSegment(parts, 1, wingSouth, wingNorth, HALL_H * 0.95);
   addWingSegment(parts, -1, wingSouth, wingNorth, HALL_H * 0.95);
 
+  // 一进两侧无厢房的围墙段：补压顶瓦（厢房 / 正房处不动）
+  {
+    const t = WALL_T;
+    const southZ = COMPOUND_HALF_Z - t * 0.5;
+    const bareLen = southZ - wingSouth - 0.35;
+    const bareCz = (southZ + wingSouth) * 0.5;
+    const wallTopY = FOUNDATION_H + WALL_H;
+    if (bareLen > 2) {
+      addWallTileCoping(
+        parts,
+        COMPOUND_HALF_X - t * 0.5,
+        bareCz,
+        bareLen,
+        t,
+        wallTopY,
+        "z",
+      );
+      addWallTileCoping(
+        parts,
+        -(COMPOUND_HALF_X - t * 0.5),
+        bareCz,
+        bareLen,
+        t,
+        wallTopY,
+        "z",
+      );
+    }
+  }
+
   // —— 中间：只有拱门墙 ——
   addArchWall(parts, COMPOUND_LANDMARKS.arch1.z);
   addArchWall(parts, COMPOUND_LANDMARKS.arch2.z);
@@ -569,7 +714,7 @@ export function buildCompoundObstacles(): readonly {
   const hallHalfD = MAIN_HALL_DEPTH * 0.5 + 0.35;
   const mainHalfW = MAIN_HALL_SPAN * 0.5 + 0.2;
   const archHalf = ARCH_WALL_W * 0.5;
-  const archOpen = 2.4;
+  const archOpen = ARCH_OPEN_W * 0.5;
 
   const archObstacles = (
     [COMPOUND_LANDMARKS.arch1.z, COMPOUND_LANDMARKS.arch2.z, COMPOUND_LANDMARKS.arch3.z] as const
