@@ -96,6 +96,9 @@ const WING_DOOR_ZS = [
   (COMPOUND_LANDMARKS.arch3.z + COMPOUND_LANDMARKS.mainHall.z) * 0.5,
 ] as const;
 
+/** 四进地面挖洞半径，略大于 AssetQuest 盆体外缘 */
+export const KOI_POND_HOLE_RADIUS = 2.95;
+
 export const KOI_POND_OBSTACLE = {
   kind: "circle" as const,
   x: COMPOUND_LANDMARKS.koiPond.x,
@@ -598,9 +601,47 @@ function addArchWall(parts: Parts, cz: number): void {
 }
 
 function addCourtyardFloors(parts: Parts): void {
+  const pond = COMPOUND_LANDMARKS.koiPond;
   for (const yard of Object.values(COURTYARDS)) {
-    const g = new THREE.BoxGeometry(yard.w, 0.06, yard.d);
-    g.translate(yard.cx, 0.02, yard.cz);
+    const inYard =
+      Math.abs(pond.x - yard.cx) < yard.w * 0.5 - 1 &&
+      Math.abs(pond.z - yard.cz) < yard.d * 0.5 - 1;
+
+    if (!inYard) {
+      const g = new THREE.BoxGeometry(yard.w, 0.06, yard.d);
+      g.translate(yard.cx, 0.02, yard.cz);
+      parts.courtyards.push(g);
+      continue;
+    }
+
+    // 四进：地面挖圆洞，露出锦鲤池
+    const hw = yard.w * 0.5;
+    const hd = yard.d * 0.5;
+    const shape = new THREE.Shape();
+    shape.moveTo(-hw, -hd);
+    shape.lineTo(hw, -hd);
+    shape.lineTo(hw, hd);
+    shape.lineTo(-hw, hd);
+    shape.closePath();
+    const hole = new THREE.Path();
+    // Shape 在 XY；rotateX(-π/2) 后 shapeY → -worldZ，故此处对 Z 取反
+    hole.absarc(
+      pond.x - yard.cx,
+      -(pond.z - yard.cz),
+      KOI_POND_HOLE_RADIUS,
+      0,
+      Math.PI * 2,
+      true,
+    );
+    shape.holes.push(hole);
+    const g = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.06,
+      bevelEnabled: false,
+      curveSegments: 40,
+    });
+    g.rotateX(-Math.PI / 2);
+    g.translate(yard.cx, -0.01, yard.cz);
+    g.computeVertexNormals();
     parts.courtyards.push(g);
   }
 }

@@ -4,12 +4,11 @@
  * 中式园林点景：中轴汀步、假山、锦鲤鱼池；各进院落小品。
  */
 import { useTexture } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { COMPOUND_LANDMARKS, COURTYARDS } from "@/lib/geoCompound";
+import { CourtyardKoiPond } from "./CourtyardKoiPond";
 
-const WATER_NORMAL = new THREE.Vector2(0.4, 0.4);
 const ROCK_NORMAL = new THREE.Vector2(1.1, 1.1);
 
 type Stone = {
@@ -126,129 +125,6 @@ function Rockery() {
   );
 }
 
-function KoiFish({
-  color,
-  radius,
-  speed,
-  phase,
-}: {
-  color: string;
-  radius: number;
-  speed: number;
-  phase: number;
-}) {
-  const ref = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }) => {
-    const group = ref.current;
-    if (!group) return;
-    const t = clock.elapsedTime * speed + phase;
-    group.position.x = Math.cos(t) * radius;
-    group.position.z = Math.sin(t) * radius * 0.72;
-    group.position.y = 0.08 + Math.sin(t * 2.2) * 0.02;
-    group.rotation.y = -t + Math.PI * 0.5;
-  });
-
-  return (
-    <group ref={ref}>
-      <mesh castShadow rotation={[0, 0, 0.1]}>
-        <capsuleGeometry args={[0.06, 0.22, 4, 8]} />
-        <meshStandardMaterial
-          color={color}
-          roughness={0.45}
-          metalness={0.08}
-          envMapIntensity={0.4}
-        />
-      </mesh>
-      <mesh position={[0.14, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <coneGeometry args={[0.05, 0.1, 5]} />
-        <meshStandardMaterial color={color} roughness={0.5} metalness={0.05} />
-      </mesh>
-    </group>
-  );
-}
-
-function KoiPond() {
-  const waterNormals = useTexture("/textures/waternormals.jpg");
-  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
-  const { x, z } = COMPOUND_LANDMARKS.koiPond;
-
-  useLayoutEffect(() => {
-    waterNormals.wrapS = THREE.RepeatWrapping;
-    waterNormals.wrapT = THREE.RepeatWrapping;
-    waterNormals.repeat.set(1.8, 1.8);
-    waterNormals.needsUpdate = true;
-  }, [waterNormals]);
-
-  useFrame((_, delta) => {
-    const material = materialRef.current;
-    if (!material?.normalMap) return;
-    material.normalMap.offset.x += delta * 0.025;
-    material.normalMap.offset.y += delta * 0.015;
-  });
-
-  const fish = useMemo(
-    () => [
-      { color: "#e85d2a", radius: 1.35, speed: 0.55, phase: 0.2 },
-      { color: "#f2f0ea", radius: 1.1, speed: 0.7, phase: 1.4 },
-      { color: "#d43b2f", radius: 1.55, speed: 0.42, phase: 2.6 },
-      { color: "#f0c45a", radius: 0.95, speed: 0.85, phase: 3.5 },
-      { color: "#f5f5f2", radius: 1.25, speed: 0.6, phase: 4.8 },
-    ],
-    [],
-  );
-
-  return (
-    <group position={[x, 0, z]}>
-      {/* 池岸 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0.15]} position={[0, -0.02, 0]} receiveShadow>
-        <ringGeometry args={[1.85, 2.55, 48]} />
-        <meshStandardMaterial
-          color="#8a7a62"
-          roughness={0.94}
-          metalness={0.02}
-          envMapIntensity={0.12}
-        />
-      </mesh>
-      {/* 池底 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
-        <circleGeometry args={[1.9, 40]} />
-        <meshStandardMaterial color="#3d4a32" roughness={1} metalness={0} />
-      </mesh>
-      {/* 水面 */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0.1]}
-        position={[0, -0.02, 0]}
-        scale={[2.05, 1.65, 1]}
-        receiveShadow
-      >
-        <circleGeometry args={[1, 48]} />
-        <meshPhysicalMaterial
-          ref={materialRef}
-          color="#1a5a62"
-          roughness={0.1}
-          metalness={0.02}
-          transmission={0.5}
-          thickness={0.6}
-          ior={1.33}
-          transparent
-          opacity={0.9}
-          envMapIntensity={1.2}
-          attenuationColor="#0d3840"
-          attenuationDistance={1.5}
-          normalMap={waterNormals}
-          normalScale={WATER_NORMAL}
-        />
-      </mesh>
-      <group position={[0, -0.01, 0]}>
-        {fish.map((f) => (
-          <KoiFish key={f.phase} {...f} />
-        ))}
-      </group>
-    </group>
-  );
-}
-
 /** 各进院落小景：石桌、缸、灯 */
 function CourtyardVignettes() {
   const spots = [
@@ -320,7 +196,7 @@ export function ChineseGardenFeatures() {
     <group>
       <AxisSteppingStones />
       <Rockery />
-      <KoiPond />
+      <CourtyardKoiPond />
       <CourtyardVignettes />
     </group>
   );
