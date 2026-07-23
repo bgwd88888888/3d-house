@@ -39,8 +39,8 @@ function FitCamera({ sphere }: { sphere: THREE.Sphere }) {
 
     const target = new THREE.Vector3(0, 1.2, 0);
     orbit?.target?.copy(target);
-    // 固定南高俯视，避免贴门
-    camera.position.set(0, 95, 78);
+    // 低俯视：保证视锥上沿越过地平线，能看到白天天空
+    camera.position.set(0, 26, 108);
     camera.lookAt(target);
     /* eslint-disable react-hooks/immutability */
     camera.near = 0.2;
@@ -85,11 +85,11 @@ export function CourtyardCompound() {
         <mesh geometry={layers.walls} castShadow receiveShadow>
           <meshStandardMaterial
             {...wallTextures}
-            color="#f3eee4"
-            roughness={0.9}
-            metalness={0.02}
-            normalScale={new THREE.Vector2(0.55, 0.55)}
-            envMapIntensity={0.28}
+            color="#d6cec0"
+            roughness={0.98}
+            metalness={0.01}
+            normalScale={new THREE.Vector2(1.15, 1.15)}
+            envMapIntensity={0.18}
           />
         </mesh>
       ) : null}
@@ -97,11 +97,11 @@ export function CourtyardCompound() {
         <mesh geometry={layers.roofs} castShadow receiveShadow>
           <meshStandardMaterial
             {...roofTextures}
-            color="#d8dce2"
-            roughness={0.82}
-            metalness={0.03}
-            normalScale={new THREE.Vector2(1.05, 1.05)}
-            envMapIntensity={0.36}
+            color="#cfd4da"
+            roughness={0.9}
+            metalness={0.02}
+            normalScale={new THREE.Vector2(1.2, 1.2)}
+            envMapIntensity={0.3}
             side={THREE.DoubleSide}
           />
         </mesh>

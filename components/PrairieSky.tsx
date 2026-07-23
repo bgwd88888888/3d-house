@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 草原式蓝天蓝穹：俯视时仍保持干净钴蓝，不靠 Preetham 地平线发白。
+ * 白天蓝天蓝穹：天顶浅蓝、地平线灰白雾化，与亮地面一致。
  */
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -13,22 +13,26 @@ type PrairieSkyProps = {
 
 const SKY_COLORS: Record<
   WeatherKind,
-  { zenith: string; mid: string; horizon: string }
+  { zenith: string; mid: string; horizon: string; haze: string }
 > = {
   sunny: {
-    zenith: "#3d8fd4",
-    mid: "#6aade6",
-    horizon: "#a8cff0",
+    // 白天浅天蓝（偏亮以抵消 ACES）；地平线灰白
+    zenith: "#8ec8ef",
+    mid: "#b6daf2",
+    horizon: "#e4e9ec",
+    haze: "#d8e0e4",
   },
   cloudy: {
-    zenith: "#7a8fa3",
-    mid: "#9aabbc",
-    horizon: "#c0c8d0",
+    zenith: "#5e7084",
+    mid: "#7a8896",
+    horizon: "#6e7672",
+    haze: "#6e7672",
   },
   dusk: {
-    zenith: "#4a5f9a",
-    mid: "#c4886a",
-    horizon: "#e8b898",
+    zenith: "#354675",
+    mid: "#a06850",
+    horizon: "#8a6e52",
+    haze: "#8a6e52",
   },
 };
 
@@ -39,6 +43,7 @@ export function PrairieSky({ weather }: PrairieSkyProps) {
     const zenith = new THREE.Color(colors.zenith);
     const mid = new THREE.Color(colors.mid);
     const horizon = new THREE.Color(colors.horizon);
+    const haze = new THREE.Color(colors.haze);
 
     return new THREE.ShaderMaterial({
       side: THREE.BackSide,
@@ -49,6 +54,7 @@ export function PrairieSky({ weather }: PrairieSkyProps) {
         uZenith: { value: zenith },
         uMid: { value: mid },
         uHorizon: { value: horizon },
+        uHaze: { value: haze },
       },
       vertexShader: /* glsl */ `
         varying vec3 vWorldPos;
@@ -62,20 +68,31 @@ export function PrairieSky({ weather }: PrairieSkyProps) {
         uniform vec3 uZenith;
         uniform vec3 uMid;
         uniform vec3 uHorizon;
+        uniform vec3 uHaze;
         varying vec3 vWorldPos;
         void main() {
           vec3 dir = normalize(vWorldPos - cameraPosition);
           float elev = dir.y;
-          float h = clamp(elev * 0.5 + 0.5, 0.0, 1.0);
-          vec3 col = mix(uHorizon, uMid, smoothstep(0.0, 0.42, h));
-          col = mix(col, uZenith, smoothstep(0.32, 0.92, h));
+          // 0=地平线，1=天顶；下半段多留给灰白地平线
+          float h = clamp(elev * 0.62 + 0.38, 0.0, 1.0);
+
+          vec3 col = mix(uHorizon, uMid, smoothstep(0.0, 0.38, h));
+          col = mix(col, uZenith, smoothstep(0.28, 0.92, h));
+
+          // 地平线加宽灰白带，避免蓝天直接切草地
+          float hazeAmt = 1.0 - smoothstep(-0.06, 0.42, h);
+          hazeAmt = hazeAmt * hazeAmt * (1.2 - 0.2 * hazeAmt);
+          col = mix(col, uHaze, clamp(hazeAmt * 0.92, 0.0, 1.0));
+
+          // 略降饱和，保持白天浅蓝而非艳蓝
           float luma = dot(col, vec3(0.299, 0.587, 0.114));
-          col = mix(vec3(luma), col, 1.06);
+          col = mix(vec3(luma), col, mix(0.72, 0.92, smoothstep(0.15, 0.55, h)));
+
           gl_FragColor = vec4(col, 1.0);
         }
       `,
     });
-  }, [colors.horizon, colors.mid, colors.zenith]);
+  }, [colors.haze, colors.horizon, colors.mid, colors.zenith]);
 
   useEffect(() => {
     return () => material.dispose();

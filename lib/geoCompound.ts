@@ -66,9 +66,22 @@ export const COURTYARDS = {
 
 /** 南大门洞净宽（米） */
 export const GATE_OPENING_W = 6.4;
-/** 门墩外缘 |x|（门洞半宽 + 墩宽），石狮须摆在此外侧以免埋进白墙 */
+/** 门墩宽度（与门楼 pierW 一致） */
+const GATE_PIER_W = 2.05;
+/** 门墩外缘 |x|（门洞半宽 + 墩偏置 + 半墩宽），石狮须摆在此外侧以免埋进白墙 */
 export const GATE_PIER_OUTER_X =
-  GATE_OPENING_W * 0.5 + 1.85 * 0.35 + 1.85 * 0.5;
+  GATE_OPENING_W * 0.5 + GATE_PIER_W * 0.32 + GATE_PIER_W * 0.5;
+/** 南墙中心 Z（门楼相对此点前移） */
+export const GATE_SOUTH_WALL_Z = COMPOUND_HALF_Z - WALL_T * 0.5;
+/** 门楼门墩中心 Z */
+export const GATE_PORCH_Z = GATE_SOUTH_WALL_Z + 1.25;
+/** 门墩进深（与 addPerimeter 中 pierD 一致） */
+const GATE_PIER_D = 3.7;
+/**
+ * 朱红大门 / 木门框立柱中心 Z。
+ * 贴齐门墩南立面，避免门扇缩进门洞深处、与框错位。
+ */
+export const GATE_FACE_Z = GATE_PORCH_Z + GATE_PIER_D * 0.5 - 0.2;
 
 export const COMPOUND_LANDMARKS = {
   gate: { x: 0, z: COMPOUND_HALF_Z - 0.4 },
@@ -124,6 +137,34 @@ function emptyParts(): Parts {
   };
 }
 
+function scaleBoxUvs(
+  geometry: THREE.BufferGeometry,
+  width: number,
+  height: number,
+  depth: number,
+  tile: number,
+): void {
+  const uv = geometry.getAttribute("uv");
+  if (!uv) return;
+  const faceScales: [number, number][] = [
+    [depth / tile, height / tile],
+    [depth / tile, height / tile],
+    [width / tile, depth / tile],
+    [width / tile, depth / tile],
+    [width / tile, height / tile],
+    [width / tile, height / tile],
+  ];
+  for (let face = 0; face < 6; face += 1) {
+    const [uScale, vScale] = faceScales[face];
+    const base = face * 4;
+    for (let vertex = 0; vertex < 4; vertex += 1) {
+      const index = base + vertex;
+      uv.setXY(index, uv.getX(index) * uScale, uv.getY(index) * vScale);
+    }
+  }
+  uv.needsUpdate = true;
+}
+
 function box(
   w: number,
   h: number,
@@ -131,8 +172,10 @@ function box(
   x: number,
   y: number,
   z: number,
+  scaleUvs = false,
 ): THREE.BufferGeometry {
   const g = new THREE.BoxGeometry(w, h, d);
+  if (scaleUvs) scaleBoxUvs(g, w, h, d, WALL_TEXTURE_TILE);
   g.translate(x, y, z);
   return g;
 }
@@ -155,7 +198,9 @@ function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
   return merged;
 }
 
-const ROOF_TEXTURE_TILE = 2.35;
+/** 略放大瓦片覆盖米数，减轻明显平铺感 */
+const ROOF_TEXTURE_TILE = 4.2;
+const WALL_TEXTURE_TILE = 2.8;
 
 type RoofVert = { p: [number, number, number]; uv: [number, number] };
 
@@ -358,7 +403,7 @@ function addHall(
   parts.foundations.push(
     box(width + 0.4, FOUNDATION_H, depth + 0.4, 0, FOUNDATION_H * 0.5, cz),
   );
-  parts.walls.push(box(width, height, depth, 0, y, cz));
+  parts.walls.push(box(width, height, depth, 0, y, cz, true));
   addGableRoof(parts, 0, FOUNDATION_H + height, cz, width, depth, roofH);
 
   if (options?.door !== false) {
@@ -388,7 +433,7 @@ function addWingSegment(
   parts.foundations.push(
     box(WING_DEPTH + 0.3, FOUNDATION_H, depth + 0.2, cx, FOUNDATION_H * 0.5, cz),
   );
-  parts.walls.push(box(WING_DEPTH, height, depth, cx, y, cz));
+  parts.walls.push(box(WING_DEPTH, height, depth, cx, y, cz, true));
   addGableRoof(
     parts,
     cx,
@@ -433,90 +478,91 @@ function addPerimeter(parts: Parts): void {
   parts.walls.push(box(footT, footH, COMPOUND_DEPTH + 0.2, hx - t * 0.5, footY, 0));
   parts.walls.push(box(footT, footH, COMPOUND_DEPTH + 0.2, -(hx - t * 0.5), footY, 0));
   parts.walls.push(box(COMPOUND_WIDTH + 0.2, footH, footT, 0, footY, -(hz - t * 0.5)));
-  parts.walls.push(box(t, h, COMPOUND_DEPTH, hx - t * 0.5, y, 0));
-  parts.walls.push(box(t, h, COMPOUND_DEPTH, -(hx - t * 0.5), y, 0));
-  parts.walls.push(box(COMPOUND_WIDTH, h, t, 0, y, -(hz - t * 0.5)));
+  parts.walls.push(box(t, h, COMPOUND_DEPTH, hx - t * 0.5, y, 0, true));
+  parts.walls.push(box(t, h, COMPOUND_DEPTH, -(hx - t * 0.5), y, 0, true));
+  parts.walls.push(box(COMPOUND_WIDTH, h, t, 0, y, -(hz - t * 0.5), true));
 
   // 南墙：大门两侧
   const sideW = (COMPOUND_WIDTH - gateW) * 0.5;
-  const southZ = hz - t * 0.5;
+  const southZ = GATE_SOUTH_WALL_Z;
   const southFootX = gateW * 0.5 + sideW * 0.5;
   parts.walls.push(box(sideW + 0.15, footH, footT, -southFootX, footY, southZ));
   parts.walls.push(box(sideW + 0.15, footH, footT, southFootX, footY, southZ));
-  parts.walls.push(box(sideW, h, t, -southFootX, y, southZ));
-  parts.walls.push(box(sideW, h, t, southFootX, y, southZ));
+  parts.walls.push(box(sideW, h, t, -southFootX, y, southZ, true));
+  parts.walls.push(box(sideW, h, t, southFootX, y, southZ, true));
 
   // 南墙两侧压顶瓦（门楼已有屋顶，不覆盖）
   const wallTopY = FOUNDATION_H + h;
   addWallTileCoping(parts, -southFootX, southZ, sideW, t, wallTopY, "x");
   addWallTileCoping(parts, southFootX, southZ, sideW, t, wallTopY, "x");
 
-  // 大气门楼
-  const pierW = 1.85;
-  const pierD = 3.4;
-  const gateH = h + 2.6;
-  const pierX = gateW * 0.5 + pierW * 0.35;
-  const porchZ = southZ + 1.15;
+  // 大气门楼（加高加厚，给匾额与斗拱留位）
+  const pierW = GATE_PIER_W;
+  const pierD = GATE_PIER_D;
+  const gateH = h + 3.2;
+  const pierX = gateW * 0.5 + pierW * 0.32;
+  const porchZ = GATE_PORCH_Z;
 
-  parts.walls.push(box(gateW + pierW * 2.2, footH, pierD + 1.2, 0, footY, porchZ - 0.2));
+  parts.walls.push(box(gateW + pierW * 2.35, footH, pierD + 1.35, 0, footY, porchZ - 0.15));
   parts.walls.push(
     box(pierW, gateH, pierD, -pierX, FOUNDATION_H + gateH * 0.5, porchZ),
   );
   parts.walls.push(
     box(pierW, gateH, pierD, pierX, FOUNDATION_H + gateH * 0.5, porchZ),
   );
+  // 门墩压顶石
   parts.walls.push(
-    box(pierW + 0.35, 0.28, pierD + 0.35, -pierX, FOUNDATION_H + gateH + 0.05, porchZ),
+    box(pierW + 0.4, 0.32, pierD + 0.4, -pierX, FOUNDATION_H + gateH + 0.08, porchZ),
   );
   parts.walls.push(
-    box(pierW + 0.35, 0.28, pierD + 0.35, pierX, FOUNDATION_H + gateH + 0.05, porchZ),
+    box(pierW + 0.4, 0.32, pierD + 0.4, pierX, FOUNDATION_H + gateH + 0.08, porchZ),
+  );
+
+  // 檐下主梁 / 次梁（与门框同立面略后，勿挡门扇）
+  parts.woodwork.push(
+    box(gateW + 1.1, 0.62, 0.62, 0, FOUNDATION_H + gateH - 0.28, GATE_FACE_Z - 0.15),
   );
   parts.woodwork.push(
-    box(gateW + 0.4, 0.55, 0.55, 0, FOUNDATION_H + gateH - 0.35, porchZ + 0.55),
+    box(gateW + 0.85, 0.28, 0.42, 0, FOUNDATION_H + gateH - 0.72, GATE_FACE_Z - 0.08),
   );
-  parts.accents.push(
-    box(gateW * 0.72, 0.85, 0.12, 0, FOUNDATION_H + gateH - 1.05, porchZ + 0.85),
+  // 匾额上下金线木框位（匾本体在 CourtyardEntrance）
+  parts.woodwork.push(
+    box(gateW * 0.92, 0.14, 0.2, 0, FOUNDATION_H + gateH - 1.05, GATE_FACE_Z),
   );
   parts.woodwork.push(
-    box(gateW * 0.78, 0.12, 0.18, 0, FOUNDATION_H + gateH - 0.55, porchZ + 0.9),
+    box(gateW * 0.92, 0.14, 0.2, 0, FOUNDATION_H + gateH - 2.05, GATE_FACE_Z),
   );
-  parts.woodwork.push(
-    box(gateW * 0.78, 0.12, 0.18, 0, FOUNDATION_H + gateH - 1.55, porchZ + 0.9),
-  );
+  // 门框立柱 / 门楣改由 CourtyardEntrance 与朱红大门同立面绘制，此处不再放立柱
   for (const sx of [-1, 1] as const) {
+    // 简易斗拱示意
     parts.woodwork.push(
-      box(0.32, gateH * 0.92, 0.32, sx * (gateW * 0.38), FOUNDATION_H + gateH * 0.46, porchZ + 1.05),
+      box(0.55, 0.22, 0.7, sx * (gateW * 0.28), FOUNDATION_H + gateH - 0.55, GATE_FACE_Z - 0.05),
+    );
+    parts.woodwork.push(
+      box(0.28, 0.45, 0.28, sx * (gateW * 0.28), FOUNDATION_H + gateH - 0.9, GATE_FACE_Z),
     );
   }
+  // 单层门楼瓦顶（宽度收在门墩内，勿盖住两侧围墙压檐）
   addGableRoof(
     parts,
     0,
-    FOUNDATION_H + gateH * 0.78,
-    porchZ + 0.15,
-    gateW + pierW * 2.8,
-    pierD + 1.4,
-    1.55,
-  );
-  addGableRoof(
-    parts,
-    0,
-    FOUNDATION_H + gateH + 0.15,
-    porchZ,
-    gateW + pierW * 1.6,
-    pierD * 0.85,
-    2.15,
+    FOUNDATION_H + gateH + 0.05,
+    porchZ + 0.05,
+    gateW + pierW * 2.15,
+    pierD + 1.25,
+    1.95,
   );
 
   for (let i = 0; i < 3; i += 1) {
-    const stepW = gateW + 1.6 - i * 0.35;
+    const stepW = gateW + 1.8 - i * 0.35;
     parts.foundations.push(
       box(
         stepW,
         0.16,
-        0.55,
+        0.58,
         0,
         0.08 + i * 0.14,
-        southZ + pierD * 0.35 + 1.55 + i * 0.48,
+        southZ + pierD * 0.35 + 1.65 + i * 0.5,
       ),
     );
   }
@@ -525,7 +571,7 @@ function addPerimeter(parts: Parts): void {
 function addScreenWall(parts: Parts): void {
   const { x, z } = COMPOUND_LANDMARKS.screenWall;
   parts.foundations.push(box(9.2, FOUNDATION_H, 1.2, x, FOUNDATION_H * 0.5, z));
-  parts.walls.push(box(8.8, 3.8, 0.55, x, FOUNDATION_H + 1.9, z));
+  parts.walls.push(box(8.8, 3.8, 0.55, x, FOUNDATION_H + 1.9, z, true));
   parts.accents.push(box(7.8, 2.6, 0.08, x, FOUNDATION_H + 2.0, z + 0.32));
   parts.woodwork.push(box(9.2, 0.22, 0.75, x, FOUNDATION_H + 3.9, z));
   addGableRoof(parts, x, FOUNDATION_H + 3.95, z, 9.6, 1.4, 1.15);

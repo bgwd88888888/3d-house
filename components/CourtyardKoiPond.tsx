@@ -17,7 +17,7 @@ import {
 const WATER_RX = 1.9;
 const WATER_RZ = 1.55;
 const BANK_PAD = 0.85;
-const WATER_NORMAL = new THREE.Vector2(0.4, 0.4);
+const WATER_NORMAL = new THREE.Vector2(0.55, 0.55);
 const BANK_NORMAL = new THREE.Vector2(0.65, 0.65);
 
 type Placed = {
@@ -55,19 +55,21 @@ function PondWater() {
       <circleGeometry args={[1, 64]} />
       <meshPhysicalMaterial
         ref={materialRef}
-        color="#1f6f7c"
-        roughness={0.1}
-        metalness={0.05}
-        // 俯视时少透草皮，仍保留一点通透
-        transmission={0.28}
-        thickness={0.85}
+        color="#3d6e6a"
+        roughness={0.04}
+        metalness={0.02}
+        // 加强反射与通透，避免纯蓝贴纸感
+        transmission={0.48}
+        thickness={1.15}
         ior={1.33}
         transparent
-        opacity={0.9}
-        depthWrite
-        envMapIntensity={1.6}
-        attenuationColor="#0c3840"
-        attenuationDistance={1.1}
+        opacity={0.78}
+        depthWrite={false}
+        envMapIntensity={2.4}
+        attenuationColor="#1a3a38"
+        attenuationDistance={1.6}
+        clearcoat={0.35}
+        clearcoatRoughness={0.18}
         normalMap={waterNormals}
         normalScale={WATER_NORMAL}
       />

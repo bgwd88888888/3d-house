@@ -24,15 +24,17 @@ function cloneTreeMaterial(source: THREE.Material): THREE.Material {
   material.metalness = 0;
   const name = material.name.toLowerCase();
   if (name.includes("leaf") || name.includes("leaves") || name.includes("pine")) {
-    material.color.multiplyScalar(0.78).lerp(new THREE.Color("#5c6b3e"), 0.35);
-    material.alphaTest = 0.4;
+    // 提亮叶片，保留一点透明受光层次，避免一团死黑
+    material.color.multiplyScalar(1.28).lerp(new THREE.Color("#7a9a52"), 0.22);
+    material.alphaTest = 0.28;
     material.depthWrite = true;
-    material.envMapIntensity = 0.18;
-    material.roughness = 0.96;
+    material.envMapIntensity = 0.42;
+    material.roughness = 0.85;
     material.side = THREE.DoubleSide;
-    material.transparent = false;
+    material.transparent = true;
+    material.opacity = 0.92;
     if (material.normalMap) {
-      material.normalScale = new THREE.Vector2(0.7, 0.7);
+      material.normalScale = new THREE.Vector2(0.75, 0.75);
     }
   } else {
     material.color.multiplyScalar(0.9).lerp(new THREE.Color("#8a7a68"), 0.15);

@@ -156,7 +156,7 @@ function CourtyardDecor() {
 }
 
 const DEFAULT_CAMERA = {
-  position: [0, 95, 78] as [number, number, number],
+  position: [0, 26, 108] as [number, number, number],
   fov: 42,
   near: 0.2,
   far: 2500,
