@@ -13,11 +13,11 @@ import {
   COMPOUND_LANDMARKS,
   KOI_POND_HOLE_RADIUS,
 } from "@/lib/geoCompound";
+import { PondWaterSurface } from "./PondWaterSurface";
 
 const WATER_RX = 1.9;
 const WATER_RZ = 1.55;
 const BANK_PAD = 0.85;
-const WATER_NORMAL = new THREE.Vector2(0.55, 0.55);
 const BANK_NORMAL = new THREE.Vector2(0.65, 0.65);
 
 type Placed = {
@@ -26,56 +26,6 @@ type Placed = {
   rotationY?: number;
   scale?: number;
 };
-
-function PondWater() {
-  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
-  const waterNormals = useTexture("/textures/waternormals.jpg");
-
-  useLayoutEffect(() => {
-    waterNormals.wrapS = THREE.RepeatWrapping;
-    waterNormals.wrapT = THREE.RepeatWrapping;
-    waterNormals.repeat.set(1.6, 1.6);
-    waterNormals.needsUpdate = true;
-  }, [waterNormals]);
-
-  useFrame((_, delta) => {
-    const material = materialRef.current;
-    if (!material?.normalMap) return;
-    material.normalMap.offset.x += delta * 0.03;
-    material.normalMap.offset.y += delta * 0.018;
-  });
-
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0.08, 0]}
-      position={[0.05, 0.06, -0.05]}
-      scale={[WATER_RX, WATER_RZ, 1]}
-      receiveShadow
-    >
-      <circleGeometry args={[1, 64]} />
-      <meshPhysicalMaterial
-        ref={materialRef}
-        color="#3d6e6a"
-        roughness={0.04}
-        metalness={0.02}
-        // 加强反射与通透，避免纯蓝贴纸感
-        transmission={0.48}
-        thickness={1.15}
-        ior={1.33}
-        transparent
-        opacity={0.78}
-        depthWrite={false}
-        envMapIntensity={2.4}
-        attenuationColor="#1a3a38"
-        attenuationDistance={1.6}
-        clearcoat={0.35}
-        clearcoatRoughness={0.18}
-        normalMap={waterNormals}
-        normalScale={WATER_NORMAL}
-      />
-    </mesh>
-  );
-}
 
 function BankRing() {
   const textures = useTexture({
@@ -277,7 +227,20 @@ export function CourtyardKoiPond() {
       <group position={[0, -0.02, 0]} scale={1.08}>
         <primitive object={assets.basin} />
       </group>
-      <PondWater />
+      <PondWaterSurface
+        rx={WATER_RX}
+        rz={WATER_RZ}
+        position={[0.05, 0.06, -0.05]}
+        tilt={0.08}
+        color="#2f5f56"
+        mirror={0.4}
+        mixStrength={2.4}
+        mixBlur={1.2}
+        roughness={0.55}
+        metalness={0.45}
+        normalRepeat={1.8}
+        normalScale={0.4}
+      />
       {placements.rocks.map((item, index) => (
         <PlacedAsset key={`rock-${index}`} {...item} />
       ))}

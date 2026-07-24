@@ -16,11 +16,11 @@ const SKY_COLORS: Record<
   { zenith: string; mid: string; horizon: string; haze: string }
 > = {
   sunny: {
-    // 白天浅天蓝（偏亮以抵消 ACES）；地平线灰白
-    zenith: "#8ec8ef",
-    mid: "#b6daf2",
-    horizon: "#e4e9ec",
-    haze: "#d8e0e4",
+    // 白天通透浅蓝（偏亮以抵消 ACES）；地平线灰白雾化
+    zenith: "#5f9fe0",
+    mid: "#9bd0f0",
+    horizon: "#eef2ee",
+    haze: "#e0e7e6",
   },
   cloudy: {
     zenith: "#5e7084",
@@ -73,20 +73,16 @@ export function PrairieSky({ weather }: PrairieSkyProps) {
         void main() {
           vec3 dir = normalize(vWorldPos - cameraPosition);
           float elev = dir.y;
-          // 0=地平线，1=天顶；下半段多留给灰白地平线
-          float h = clamp(elev * 0.62 + 0.38, 0.0, 1.0);
 
-          vec3 col = mix(uHorizon, uMid, smoothstep(0.0, 0.38, h));
-          col = mix(col, uZenith, smoothstep(0.28, 0.92, h));
+          // 视野常用仰角大约在 -0.1~0.5 之间；让渐变主要发生在这段范围内，
+          // 避免大部分画面都停在同一档「mid」色而显得扁平。
+          vec3 col = mix(uHorizon, uMid, smoothstep(-0.08, 0.10, elev));
+          col = mix(col, uZenith, smoothstep(0.06, 0.46, elev));
 
-          // 地平线加宽灰白带，避免蓝天直接切草地
-          float hazeAmt = 1.0 - smoothstep(-0.06, 0.42, h);
+          // 地平线灰白雾化带，做出真实大气透视的柔和过渡
+          float hazeAmt = 1.0 - smoothstep(-0.10, 0.07, elev);
           hazeAmt = hazeAmt * hazeAmt * (1.2 - 0.2 * hazeAmt);
-          col = mix(col, uHaze, clamp(hazeAmt * 0.92, 0.0, 1.0));
-
-          // 略降饱和，保持白天浅蓝而非艳蓝
-          float luma = dot(col, vec3(0.299, 0.587, 0.114));
-          col = mix(vec3(luma), col, mix(0.72, 0.92, smoothstep(0.15, 0.55, h)));
+          col = mix(col, uHaze, clamp(hazeAmt * 0.85, 0.0, 1.0));
 
           gl_FragColor = vec4(col, 1.0);
         }

@@ -43,29 +43,35 @@ export type WeatherPreset = {
 
 export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
   sunny: {
-    // 白天：浅天蓝底 + 略亮雾，与地面亮光一致
-    background: "#b6daf2",
-    fogColor: "#d0d8d4",
+    // 白天：通透浅天蓝底 + 灰白雾，与地平线雾化过渡衔接
+    background: "#9bd0f0",
+    fogColor: "#dde6e2",
     fogNear: 160,
     fogFar: 560,
     exposure: 1.08,
-    sunPosition: [55, 95, 40],
+    // 灯光意图：正午偏侧日光——抬高方位角侧移（X 更大、Z 收窄），
+    // 高度角约 47°，让墙面产生清晰明暗两面，而非顶光/正面光
+    sunPosition: [72, 78, 22],
     turbidity: 0.6,
     rayleigh: 3.4,
     mieCoefficient: 0.0015,
     mieDirectionalG: 0.7,
-    hemiIntensity: 0.88,
+    // 灯光意图：降低环境/半球光权重，给主光让出对比空间，避免整体被"洗白"
+    hemiIntensity: 0.5,
     hemiSky: "#a8d0ee",
     hemiGround: "#9ab078",
-    sunIntensity: 1.75,
-    sunColor: "#fff8ea",
-    fillIntensity: 0.42,
+    // 灯光意图：主光调亮，拉开与环境光的强度比（约 3:1），阴影更可读
+    sunIntensity: 2.3,
+    sunColor: "#fff6e2",
+    // 灯光意图：背侧补光调弱，避免暗面被填平
+    fillIntensity: 0.2,
     fillColor: "#9ec4e0",
-    faceFillIntensity: 0.4,
+    // 灯光意图：正面补光大幅调弱，仅防止亮面纯黑，不再压过主光的塑形
+    faceFillIntensity: 0.16,
     faceFillColor: "#eef6ff",
-    envIntensity: 0.58,
-    cloudOpacity: 0.92,
-    cloudColor: "#f6f9fc",
+    envIntensity: 0.4,
+    cloudOpacity: 0.95,
+    cloudColor: "#f9fbfd",
     cloudSpeed: 1.4,
     cloudShadows: true,
   },

@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * 天空云层：一朵大体主云 + 小次云 + 薄云带；
- * 近地平线更扁更淡，云底偏蓝灰以减「贴纸感」。
+ * 天空云层：大量中小积云环绕铺满天空，远近分层（近大近实、远扁远淡）；
+ * 每朵体量云都配一层偏蓝灰的云底，做出「顶亮底蓝灰」的体积明暗。
  */
 import { Cloud, Clouds } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
@@ -47,7 +47,11 @@ function hash01(n: number): number {
   return x - Math.floor(x);
 }
 
-/** 主云 / 次云 / 薄云 / 云带：层次拉开，避免等距棉花球 */
+/** 太阳大致方位（sunny 预设 sunPosition 归一化后的水平分量），云底阴影朝反方向微偏，增加方向感 */
+const SUN_BEARING_X = 0.5;
+const SUN_BEARING_Z = 0.36;
+
+/** 主云 / 次云 / 薄云 / 云带：多层环绕铺满天空，避免等距棉花球 */
 function buildCloudLayout(): CloudSpec[] {
   const clouds: CloudSpec[] = [];
   let seed = 17;
@@ -91,22 +95,26 @@ function buildCloudLayout(): CloudSpec[] {
     clouds.push(spec);
     seed += 3;
 
-    // 大体云加一层蓝灰底，做出体积明暗（非纯灰）
+    // 体量云加一层偏蓝灰、朝背光方向微偏的云底，做出体积明暗（非纯灰）
     if (opts.underside) {
       clouds.push({
         seed: seed + 1000,
         tier: "underside",
-        position: [x, y - 3.2, z],
-        scale: spec.scale * 0.94,
-        volume: spec.volume * 0.68,
-        segments: Math.max(10, opts.segments - 10),
-        bounds: [
-          opts.bounds[0] * 1.08,
-          opts.bounds[1] * 0.48,
-          opts.bounds[2] * 1.08,
+        position: [
+          x - SUN_BEARING_X * spec.scale * 0.9,
+          y - 3.2,
+          z - SUN_BEARING_Z * spec.scale * 0.9,
         ],
-        opacityMul: 0.42,
-        tint: 0.55,
+        scale: spec.scale * 0.95,
+        volume: spec.volume * 0.66,
+        segments: Math.max(10, opts.segments - 8),
+        bounds: [
+          opts.bounds[0] * 1.1,
+          opts.bounds[1] * 0.46,
+          opts.bounds[2] * 1.1,
+        ],
+        opacityMul: 0.44,
+        tint: 0.52,
       });
       seed += 3;
     }
@@ -114,108 +122,107 @@ function buildCloudLayout(): CloudSpec[] {
     return spec;
   };
 
-  // —— 一朵主云：放在默认南视（-Z）前方天空 ——
-  push("hero", 155, 48, -1.35, {
-    scale: 6.8,
-    volume: 7.4,
-    segments: 34,
-    bounds: [3.8, 2.2, 3.1],
+  // —— 焦点云：单朵稍显眼的中型积云，作为视觉锚点（非巨大棉花球） ——
+  push("hero", 150, 50, -1.5, {
+    scale: 1.85,
+    volume: 6.4,
+    segments: 26,
+    bounds: [3.2, 1.85, 2.6],
     opacityMul: 1,
-    tint: 1.12,
+    tint: 1.15,
     shadow: true,
     underside: true,
-    rJitter: 10,
-    yJitter: 2.5,
+    rJitter: 8,
+    yJitter: 2,
   });
 
-  // —— 少量中景积云：明显更小更淡；多半在南天 ——
-  const mains = [
-    { r: 175, y: 54, a: -0.55, scale: 3.0 },
-    { r: 188, y: 58, a: -2.05, scale: 2.7 },
-    { r: 168, y: 62, a: 2.7, scale: 2.5 },
-  ];
-  mains.forEach((c, i) => {
-    push("main", c.r, c.y, c.a + hash01(i + 1) * 0.35, {
-      scale: c.scale,
-      volume: 4.2,
-      segments: 20,
-      bounds: [2.4, 1.55, 2.0],
-      opacityMul: 0.72,
-      tint: 1.0,
-      shadow: i === 0,
-      underside: i === 0,
-      rJitter: 16,
+  // —— 主景积云：环绕一整圈，数量多、中等体量，铺满视野上半 ——
+  const mainCount = 17;
+  for (let i = 0; i < mainCount; i++) {
+    const a =
+      (i / mainCount) * Math.PI * 2 + (hash01(i * 5 + 101) - 0.5) * 0.55;
+    const r = 148 + hash01(i * 7 + 211) * 58;
+    const y = 44 + hash01(i * 11 + 307) * 24;
+    const scale = 1.9 + hash01(i * 13 + 409) * 1.0;
+    const withUnderside = hash01(i * 17 + 503) > 0.32;
+    push("main", r, y, a, {
+      scale,
+      volume: 3.5 + hash01(i * 19 + 601) * 1.1,
+      segments: 16,
+      bounds: [2.2, 1.35, 1.85],
+      opacityMul: 0.68 + hash01(i * 23 + 701) * 0.18,
+      tint: 0.9 + hash01(i * 29 + 809) * 0.32,
+      shadow: i % 6 === 0,
+      underside: withUnderside,
+      rJitter: 14,
       yJitter: 4,
     });
-  });
+  }
 
-  // —— 次云：更小更散 ——
-  const secondary = [
-    { r: 162, y: 42, a: -1.85 },
-    { r: 195, y: 66, a: -0.2 },
-    { r: 205, y: 50, a: -2.6 },
-    { r: 178, y: 44, a: 2.2 },
-  ];
-  secondary.forEach((c, i) => {
-    // 偏低的云更扁更淡（靠近地平线视觉）
-    const nearHorizon = c.y < 55;
-    push("secondary", c.r, c.y, c.a + hash01(i + 20) * 0.4, {
-      scale: nearHorizon ? 2.1 : 2.55,
-      volume: nearHorizon ? 2.6 : 3.4,
-      segments: 14,
-      bounds: nearHorizon ? [2.8, 0.85, 1.6] : [2.2, 1.15, 1.7],
-      opacityMul: nearHorizon ? 0.48 : 0.62,
-      tint: nearHorizon ? 0.82 : 0.9,
+  // —— 次云：更小更密，填补主云间隙 ——
+  const secondaryCount = 22;
+  for (let i = 0; i < secondaryCount; i++) {
+    const a =
+      (i / secondaryCount) * Math.PI * 2 +
+      (hash01(i * 6 + 1103) - 0.5) * 0.6;
+    const r = 155 + hash01(i * 8 + 1201) * 78;
+    const y = 34 + hash01(i * 10 + 1307) * 40;
+    const nearHorizon = y < 46;
+    const withUnderside = hash01(i * 15 + 1409) > 0.75;
+    push("secondary", r, y, a, {
+      scale: nearHorizon ? 1.45 + hash01(i + 1500) * 0.5 : 1.7 + hash01(i + 1600) * 0.7,
+      volume: nearHorizon ? 2.1 : 2.9,
+      segments: 13,
+      bounds: nearHorizon ? [2.5, 0.78, 1.5] : [2.05, 1.05, 1.6],
+      opacityMul: nearHorizon ? 0.46 : 0.6,
+      tint: nearHorizon ? 0.78 : 0.88 + hash01(i + 1700) * 0.16,
       shadow: false,
-      rJitter: 22,
-      yJitter: 5,
-    });
-  });
-
-  // —— 薄云：远、扁、淡；南天多一些 ——
-  const thin = [
-    { r: 230, y: 38, a: -1.1 },
-    { r: 250, y: 70, a: -1.9 },
-    { r: 242, y: 36, a: -0.4 },
-    { r: 265, y: 74, a: 2.4 },
-    { r: 255, y: 40, a: -2.8 },
-    { r: 275, y: 68, a: 0.9 },
-  ];
-  thin.forEach((c, i) => {
-    const nearHorizon = c.y < 50;
-    push("thin", c.r, c.y, c.a + hash01(i + 40) * 0.5, {
-      scale: nearHorizon ? 4.2 : 5.2,
-      volume: nearHorizon ? 1.6 : 2.4,
-      segments: 8,
-      bounds: nearHorizon ? [5.2, 0.42, 1.2] : [4.6, 0.55, 1.35],
-      opacityMul: nearHorizon ? 0.28 : 0.38,
-      tint: nearHorizon ? 0.7 : 0.78,
-      shadow: false,
-      rJitter: 28,
+      underside: withUnderside && !nearHorizon,
+      rJitter: 20,
       yJitter: 6,
     });
-  });
+  }
 
-  // —— 云带：拉长薄层，打破「只有团块」 ——
-  const bands = [
-    { r: 220, y: 40, a: -1.55 },
-    { r: 240, y: 52, a: -0.75 },
-    { r: 228, y: 38, a: -2.35 },
-    { r: 252, y: 58, a: 1.8 },
-  ];
-  bands.forEach((c, i) => {
-    push("band", c.r, c.y, c.a + hash01(i + 60) * 0.35, {
-      scale: 5.8,
-      volume: 1.8,
+  // —— 薄云：远、扁、淡，铺出远景层次 ——
+  const thinCount = 14;
+  for (let i = 0; i < thinCount; i++) {
+    const a =
+      (i / thinCount) * Math.PI * 2 + (hash01(i * 4 + 2101) - 0.5) * 0.5;
+    const r = 232 + hash01(i * 9 + 2203) * 55;
+    const y = 32 + hash01(i * 12 + 2309) * 44;
+    const nearHorizon = y < 48;
+    push("thin", r, y, a, {
+      scale: nearHorizon ? 3.6 + hash01(i + 2400) * 1.0 : 4.2 + hash01(i + 2500) * 1.0,
+      volume: nearHorizon ? 1.4 : 2.0,
       segments: 8,
-      bounds: [6.5, 0.32, 1.1],
-      opacityMul: 0.26,
-      tint: 0.74,
+      bounds: nearHorizon ? [4.8, 0.38, 1.1] : [4.2, 0.5, 1.25],
+      opacityMul: nearHorizon ? 0.26 : 0.34,
+      tint: nearHorizon ? 0.68 : 0.76,
       shadow: false,
-      rJitter: 20,
+      rJitter: 26,
+      yJitter: 6,
+    });
+  }
+
+  // —— 云带：拉长薄层，打破「只有团块」的观感 ——
+  const bandCount = 8;
+  for (let i = 0; i < bandCount; i++) {
+    const a =
+      (i / bandCount) * Math.PI * 2 + (hash01(i * 3 + 3101) - 0.5) * 0.4;
+    const r = 218 + hash01(i * 6 + 3203) * 46;
+    const y = 34 + hash01(i * 8 + 3307) * 26;
+    push("band", r, y, a, {
+      scale: 4.8 + hash01(i + 3400) * 1.0,
+      volume: 1.6,
+      segments: 8,
+      bounds: [5.8, 0.3, 1.0],
+      opacityMul: 0.24,
+      tint: 0.73,
+      shadow: false,
+      rJitter: 18,
       yJitter: 4,
     });
-  });
+  }
 
   return clouds;
 }
@@ -285,7 +292,7 @@ export function SkyClouds({ preset }: SkyCloudsProps) {
         key={preset.cloudColor}
         material={SoftCloudMaterial}
         frustumCulled={false}
-        limit={720}
+        limit={1400}
       >
         {CLOUD_LAYOUT.map((cloud) => {
           const soft =

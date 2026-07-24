@@ -160,24 +160,27 @@ function emptyLayers(): LayerParts {
 
 /** 墙体贴图在世界单位中的平铺边长（米） */
 const WALL_TEXTURE_TILE = 2.2;
+/** 门窗木作贴图在世界单位中的平铺边长（米），略密以体现年轮/木纹 */
+const WOOD_TEXTURE_TILE = 0.38;
 
-/** 按盒体各面真实尺寸缩放 UV，避免墙面贴图拉伸不一致 */
+/** 按盒体各面真实尺寸缩放 UV，避免贴图拉伸不一致；tileSize 决定贴图在世界单位中的重复边长 */
 function scaleBoxUvs(
   geometry: THREE.BufferGeometry,
   width: number,
   height: number,
   depth: number,
+  tileSize: number = WALL_TEXTURE_TILE,
 ): void {
   const uv = geometry.getAttribute("uv");
   if (!uv) return;
 
   const faceScales: [number, number][] = [
-    [depth / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
-    [depth / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
-    [width / WALL_TEXTURE_TILE, depth / WALL_TEXTURE_TILE],
-    [width / WALL_TEXTURE_TILE, depth / WALL_TEXTURE_TILE],
-    [width / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
-    [width / WALL_TEXTURE_TILE, height / WALL_TEXTURE_TILE],
+    [depth / tileSize, height / tileSize],
+    [depth / tileSize, height / tileSize],
+    [width / tileSize, depth / tileSize],
+    [width / tileSize, depth / tileSize],
+    [width / tileSize, height / tileSize],
+    [width / tileSize, height / tileSize],
   ];
 
   for (let face = 0; face < 6; face += 1) {
@@ -197,11 +200,22 @@ function makeBox(
   depth: number,
   center: THREE.Vector3,
   scaleUvs = false,
+  tileSize: number = WALL_TEXTURE_TILE,
 ): THREE.BufferGeometry {
   const geometry = new THREE.BoxGeometry(width, height, depth);
-  if (scaleUvs) scaleBoxUvs(geometry, width, height, depth);
+  if (scaleUvs) scaleBoxUvs(geometry, width, height, depth, tileSize);
   geometry.translate(center.x, center.y, center.z);
   return geometry;
+}
+
+/** 门窗木作专用：按世界单位缩放 UV，使木纹密度与真实尺寸匹配 */
+function makeWoodBox(
+  width: number,
+  height: number,
+  depth: number,
+  center: THREE.Vector3,
+): THREE.BufferGeometry {
+  return makeBox(width, height, depth, center, true, WOOD_TEXTURE_TILE);
 }
 
 /** 正墙 / 后墙窗框：局部 +Z 为外向；可用 rotationY 转到其他朝向 */
@@ -218,25 +232,60 @@ function makeWindowFrame(
   const sillDepth = depth + 0.14;
   const place = (
     geometry: THREE.BufferGeometry,
+    w: number,
+    h: number,
+    d: number,
     offsetX: number,
     offsetY: number,
     offsetZ: number,
   ) => {
+    scaleBoxUvs(geometry, w, h, d, WOOD_TEXTURE_TILE);
     geometry.translate(offsetX, offsetY, offsetZ);
     if (rotationY !== 0) geometry.rotateY(rotationY);
     geometry.translate(center.x, center.y, center.z);
     return geometry;
   };
 
-  parts.push(place(new THREE.BoxGeometry(side, height, depth), -(width - side) * 0.5, 0, 0));
-  parts.push(place(new THREE.BoxGeometry(side, height, depth), (width - side) * 0.5, 0, 0));
-  parts.push(place(new THREE.BoxGeometry(width, rail, depth), 0, (height - rail) * 0.5, 0));
-  parts.push(place(new THREE.BoxGeometry(width, rail, depth), 0, -(height - rail) * 0.5, 0));
-  parts.push(place(new THREE.BoxGeometry(side, height * 0.9, depth * 0.8), 0, 0, 0));
-  parts.push(place(new THREE.BoxGeometry(width * 0.72, rail, depth * 0.8), 0, height * 0.08, 0));
+  parts.push(
+    place(new THREE.BoxGeometry(side, height, depth), side, height, depth, -(width - side) * 0.5, 0, 0),
+  );
+  parts.push(
+    place(new THREE.BoxGeometry(side, height, depth), side, height, depth, (width - side) * 0.5, 0, 0),
+  );
+  parts.push(
+    place(new THREE.BoxGeometry(width, rail, depth), width, rail, depth, 0, (height - rail) * 0.5, 0),
+  );
+  parts.push(
+    place(new THREE.BoxGeometry(width, rail, depth), width, rail, depth, 0, -(height - rail) * 0.5, 0),
+  );
+  parts.push(
+    place(
+      new THREE.BoxGeometry(side, height * 0.9, depth * 0.8),
+      side,
+      height * 0.9,
+      depth * 0.8,
+      0,
+      0,
+      0,
+    ),
+  );
+  parts.push(
+    place(
+      new THREE.BoxGeometry(width * 0.72, rail, depth * 0.8),
+      width * 0.72,
+      rail,
+      depth * 0.8,
+      0,
+      height * 0.08,
+      0,
+    ),
+  );
   parts.push(
     place(
       new THREE.BoxGeometry(width * 1.04, 0.1, sillDepth),
+      width * 1.04,
+      0.1,
+      sillDepth,
       0,
       -(height * 0.5) - 0.12,
       depth * 0.45,
@@ -264,33 +313,84 @@ function makeSideWindowFrame(
   const sillOut = frameDepth + 0.22;
   const place = (
     geometry: THREE.BufferGeometry,
+    w: number,
+    h: number,
+    d: number,
     offsetY: number,
     offsetZ: number,
     extraOut = 0,
   ) => {
+    scaleBoxUvs(geometry, w, h, d, WOOD_TEXTURE_TILE);
     geometry.translate(center.x + outward * extraOut, center.y + offsetY, center.z + offsetZ);
     return geometry;
   };
 
   parts.push(
-    place(new THREE.BoxGeometry(frameDepth, height, post), 0, -(width - post) * 0.5),
+    place(
+      new THREE.BoxGeometry(frameDepth, height, post),
+      frameDepth,
+      height,
+      post,
+      0,
+      -(width - post) * 0.5,
+    ),
   );
   parts.push(
-    place(new THREE.BoxGeometry(frameDepth, height, post), 0, (width - post) * 0.5),
+    place(
+      new THREE.BoxGeometry(frameDepth, height, post),
+      frameDepth,
+      height,
+      post,
+      0,
+      (width - post) * 0.5,
+    ),
   );
   parts.push(
-    place(new THREE.BoxGeometry(frameDepth, rail, width), (height - rail) * 0.5, 0),
+    place(
+      new THREE.BoxGeometry(frameDepth, rail, width),
+      frameDepth,
+      rail,
+      width,
+      (height - rail) * 0.5,
+      0,
+    ),
   );
   parts.push(
-    place(new THREE.BoxGeometry(frameDepth, rail, width), -(height - rail) * 0.5, 0),
+    place(
+      new THREE.BoxGeometry(frameDepth, rail, width),
+      frameDepth,
+      rail,
+      width,
+      -(height - rail) * 0.5,
+      0,
+    ),
   );
-  parts.push(place(new THREE.BoxGeometry(frameDepth * 0.75, height * 0.9, post), 0, 0));
   parts.push(
-    place(new THREE.BoxGeometry(frameDepth * 0.75, rail, width * 0.72), height * 0.08, 0),
+    place(
+      new THREE.BoxGeometry(frameDepth * 0.75, height * 0.9, post),
+      frameDepth * 0.75,
+      height * 0.9,
+      post,
+      0,
+      0,
+    ),
+  );
+  parts.push(
+    place(
+      new THREE.BoxGeometry(frameDepth * 0.75, rail, width * 0.72),
+      frameDepth * 0.75,
+      rail,
+      width * 0.72,
+      height * 0.08,
+      0,
+    ),
   );
   parts.push(
     place(
       new THREE.BoxGeometry(sillOut, 0.12, width * 1.06),
+      sillOut,
+      0.12,
+      width * 1.06,
       -(height * 0.5) - 0.14,
       0,
       frameDepth * 0.35,
@@ -312,8 +412,8 @@ function makeGlassPane(
   return geometry;
 }
 
-/** 屋顶瓦片在世界单位中的平铺边长（米） */
-const ROOF_TEXTURE_TILE = 1.6;
+/** 屋顶瓦片在世界单位中的平铺边长（米）；略加密以减轻坡面拉伸，再由 shader 打散重复 */
+const ROOF_TEXTURE_TILE = 1.7;
 
 /** 人字屋顶：屋脊沿 Z，坡面朝向 ±X；无厚度，材质需 DoubleSide */
 function makeGableRoof(spec: HouseSpec): THREE.BufferGeometry {
@@ -447,7 +547,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
   const lintelY = caseInnerH + caseT * 0.5;
 
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       caseT,
       caseInnerH,
       caseD,
@@ -455,7 +555,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
     ),
   );
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       caseT,
       caseInnerH,
       caseD,
@@ -463,13 +563,13 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
     ),
   );
   layers.woodwork.push(
-    makeBox(caseOuterW, caseT, caseD, new THREE.Vector3(cx, lintelY, caseZ)),
+    makeWoodBox(caseOuterW, caseT, caseD, new THREE.Vector3(cx, lintelY, caseZ)),
   );
   // 帽线：再向前一阶，正面剪影更硬
   const capH = 0.08;
   const capD = caseD + 0.08;
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       caseOuterW + 0.08,
       capH,
       capD,
@@ -479,7 +579,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
 
   // —— 门扇底板 ——
   layers.woodwork.push(
-    makeBox(leafW, leafH, leafD, new THREE.Vector3(cx, leafY, leafZ)),
+    makeWoodBox(leafW, leafH, leafD, new THREE.Vector3(cx, leafY, leafZ)),
   );
 
   // 凸起挺/档：≥12cm 朝 +Z，正面光下也要有硬边阴影
@@ -491,7 +591,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
   const innerW = leafW - stile * 2;
 
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       stile,
       leafH,
       raiseD,
@@ -499,7 +599,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
     ),
   );
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       stile,
       leafH,
       raiseD,
@@ -507,7 +607,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
     ),
   );
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       leafW,
       rail,
       raiseD,
@@ -515,7 +615,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
     ),
   );
   layers.woodwork.push(
-    makeBox(
+    makeWoodBox(
       leafW,
       rail,
       raiseD,
@@ -527,7 +627,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
   const lockRailH = rail * 1.25;
   const lockRailY = leafY - leafH * 0.5 + leafH * 0.58;
   layers.woodwork.push(
-    makeBox(innerW + stile * 0.25, lockRailH, raiseD, new THREE.Vector3(cx, lockRailY, raiseZ)),
+    makeWoodBox(innerW + stile * 0.25, lockRailH, raiseD, new THREE.Vector3(cx, lockRailY, raiseZ)),
   );
 
   // —— 上亮：整块清晰玻璃 + 粗棂（无碎格子）——
@@ -538,10 +638,10 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
   const muntin = 0.075;
   // 粗十字棂：正面可读，但不切成密格
   layers.woodwork.push(
-    makeBox(muntin, liteH, raiseD, new THREE.Vector3(cx, liteMidY, raiseZ)),
+    makeWoodBox(muntin, liteH, raiseD, new THREE.Vector3(cx, liteMidY, raiseZ)),
   );
   layers.woodwork.push(
-    makeBox(innerW, muntin, raiseD, new THREE.Vector3(cx, liteMidY, raiseZ)),
+    makeWoodBox(innerW, muntin, raiseD, new THREE.Vector3(cx, liteMidY, raiseZ)),
   );
   // 玻璃深凹在亮窗井底，粗棂投下清晰剪影
   const glassRecess = 0.1;
@@ -561,7 +661,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
   const panelZoneH = panelTop - panelBottom;
   const panelMidY = (panelTop + panelBottom) * 0.5;
   layers.woodwork.push(
-    makeBox(midStile, panelZoneH, raiseD, new THREE.Vector3(cx, panelMidY, raiseZ)),
+    makeWoodBox(midStile, panelZoneH, raiseD, new THREE.Vector3(cx, panelMidY, raiseZ)),
   );
 
   const gap = 0.035;
@@ -587,11 +687,11 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
   for (const px of panelXs) {
     // AO 暗底：井底最深处，正面光下呈暗矩形
     layers.woodwork.push(
-      makeBox(cellW * 0.98, cellH * 0.98, aoD, new THREE.Vector3(px, panelMidY, aoZ)),
+      makeWoodBox(cellW * 0.98, cellH * 0.98, aoD, new THREE.Vector3(px, panelMidY, aoZ)),
     );
     // 外凹环（bevel step）
     layers.woodwork.push(
-      makeBox(
+      makeWoodBox(
         cellW - ringInset * 2,
         cellH - ringInset * 2,
         ringD,
@@ -600,7 +700,7 @@ function addDoorStage(layers: LayerParts, spec: HouseSpec): void {
     );
     // 内凸心板
     layers.woodwork.push(
-      makeBox(
+      makeWoodBox(
         cellW - fieldInset * 2,
         cellH - fieldInset * 2,
         fieldD,

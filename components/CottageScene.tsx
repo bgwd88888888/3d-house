@@ -4,53 +4,27 @@
  * 房子渲染层：把 geoBuildings 产出的分层几何挂上材质。
  *
  * - stage 变化会重建几何；卸载时 dispose，避免 GPU 泄漏
- * - FitCamera 仅首帧根据房子包围球对准轨道目标
+ * - 默认机位由 CityCanvas 的 CottageCameraRig 负责（院前人视构图）
  * - 墙体用 plaster PBR；屋顶用瓦片 PBR（DoubleSide）
  * - 无卡通描边，靠 PBR 与光照表现体积
  * - woodwork / metalwork / glass / steps 分层换材质
  */
-import { Suspense, useEffect, useMemo, useRef } from "react";
-import { useThree } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import {
   buildHouseLayers,
-  estimateHouseBounds,
   type BuildStage,
   type CityLayers,
 } from "@/lib/geoBuildings";
 import { useWallTextures } from "@/hooks/useWallTextures";
 import { useRoofTextures } from "@/hooks/useRoofTextures";
+import { useWoodTextures } from "@/hooks/useWoodTextures";
+import {
+  applyRoofTilingBreaker,
+  applyWallWeathering,
+  applyWoodEnrichment,
+} from "@/lib/materialWeathering";
 import { HouseWallMural } from "./HouseWallMural";
-
-function FitCamera({ sphere }: { sphere: THREE.Sphere | null }) {
-  const { camera, controls } = useThree();
-  const done = useRef(false);
-
-  useEffect(() => {
-    if (!sphere || done.current) return;
-    const orbit = controls as { target?: THREE.Vector3; update?: () => void } | null;
-    if (!(camera instanceof THREE.PerspectiveCamera)) return;
-
-    orbit?.target?.copy(sphere.center);
-
-    const dist =
-      sphere.radius / Math.sin(((camera.fov * Math.PI) / 180) / 2);
-    const eyeOffset = new THREE.Vector3(1, 0.5, 1)
-      .normalize()
-      .multiplyScalar(dist * 1.12);
-    camera.position.copy(sphere.center.clone().add(eyeOffset));
-    /* R3F 透视相机需在运行时写 near/far，见 https://docs.pmnd.rs/react-three-fiber/api/hooks#usetthree */
-    /* eslint-disable react-hooks/immutability -- PerspectiveCamera 裁剪面 */
-    camera.near = Math.max(dist / 800, 0.1);
-    camera.far = Math.max(dist * 40, 2000);
-    /* eslint-enable react-hooks/immutability */
-    camera.updateProjectionMatrix();
-    orbit?.update?.();
-    done.current = true;
-  }, [sphere, camera, controls]);
-
-  return null;
-}
 
 function disposeLayers(l: CityLayers | null) {
   if (!l) return;
@@ -71,11 +45,8 @@ type CottageSceneProps = {
 export function CottageScene({ stage }: CottageSceneProps) {
   const wallTextures = useWallTextures();
   const roofTextures = useRoofTextures();
-  const { layers, bounds } = useMemo(() => {
-    const lyr = buildHouseLayers(stage);
-    const sphere = estimateHouseBounds();
-    return { layers: lyr, bounds: sphere };
-  }, [stage]);
+  const woodTextures = useWoodTextures();
+  const layers = useMemo(() => buildHouseLayers(stage), [stage]);
 
   useEffect(() => {
     return () => disposeLayers(layers);
@@ -84,22 +55,29 @@ export function CottageScene({ stage }: CottageSceneProps) {
   const wallMat = (
     <meshStandardMaterial
       {...wallTextures}
-      color="#ebe6dc"
-      roughness={0.88}
-      metalness={0.02}
-      normalScale={new THREE.Vector2(0.75, 0.75)}
-      envMapIntensity={0.32}
+      color="#b8ab97"
+      roughness={1}
+      metalness={0.01}
+      normalScale={new THREE.Vector2(1.35, 1.35)}
+      envMapIntensity={0.08}
+      onBeforeCompile={applyWallWeathering}
+      customProgramCacheKey={() => "cottage-wall-weathered-v5"}
+      transparent={false}
+      opacity={1}
+      depthWrite
     />
   );
   const roofMat = (
     <meshStandardMaterial
       {...roofTextures}
-      color="#b86a42"
-      roughness={0.82}
-      metalness={0.04}
-      normalScale={new THREE.Vector2(0.85, 0.85)}
-      envMapIntensity={0.35}
+      color="#8a5230"
+      roughness={0.95}
+      metalness={0.02}
+      normalScale={new THREE.Vector2(1.45, 1.45)}
+      envMapIntensity={0.16}
       side={THREE.DoubleSide}
+      onBeforeCompile={applyRoofTilingBreaker}
+      customProgramCacheKey={() => "cottage-roof-tiling-breaker-v4"}
     />
   );
   const baseMat = (
@@ -112,10 +90,14 @@ export function CottageScene({ stage }: CottageSceneProps) {
   );
   const woodMat = (
     <meshStandardMaterial
-      color="#5a3a24"
-      roughness={0.72}
-      metalness={0.04}
-      envMapIntensity={0.28}
+      {...woodTextures}
+      color="#6e4a32"
+      roughness={0.78}
+      metalness={0.015}
+      normalScale={new THREE.Vector2(1.15, 1.15)}
+      envMapIntensity={0.22}
+      onBeforeCompile={applyWoodEnrichment}
+      customProgramCacheKey={() => "cottage-wood-enriched-v1"}
     />
   );
   const metalMat = (
@@ -151,7 +133,6 @@ export function CottageScene({ stage }: CottageSceneProps) {
 
   return (
     <>
-      <FitCamera sphere={bounds} />
       {layers.foundations ? (
         <mesh geometry={layers.foundations} castShadow receiveShadow>
           {baseMat}
