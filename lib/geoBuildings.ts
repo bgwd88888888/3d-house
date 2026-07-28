@@ -824,6 +824,8 @@ function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
 
   const frontZ = spec.depth * 0.5;
   const stepCenterX = spec.door.offsetX;
+  // 与小路石板同量级 UV，便于铺 PavingStones 贴图
+  const stepTile = 0.55;
   layers.steps.push(
     makeBox(
       spec.steps.upperWidth,
@@ -834,6 +836,8 @@ function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
         spec.steps.upperHeight * 0.5,
         frontZ + spec.steps.upperDepth * 0.5,
       ),
+      true,
+      stepTile,
     ),
   );
   layers.steps.push(
@@ -846,6 +850,8 @@ function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
         spec.steps.lowerHeight * 0.5,
         frontZ + spec.steps.lowerDepth * 0.5 + 0.18,
       ),
+      true,
+      stepTile,
     ),
   );
 }

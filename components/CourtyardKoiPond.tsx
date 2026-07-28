@@ -51,7 +51,7 @@ function BankRing() {
   return (
     <>
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.02, 0]}
         scale={[bankRx, bankRz, 1]}
         receiveShadow
@@ -69,7 +69,7 @@ function BankRing() {
         />
       </mesh>
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.04, 0]}
         scale={[WATER_RX * 0.98, WATER_RZ * 0.98, 1]}
         receiveShadow
@@ -231,7 +231,7 @@ export function CourtyardKoiPond() {
         rx={WATER_RX}
         rz={WATER_RZ}
         position={[0.05, 0.06, -0.05]}
-        tilt={0.08}
+        tilt={0.02}
         color="#2f5f56"
         mirror={0.4}
         mixStrength={2.4}

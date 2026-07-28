@@ -16,7 +16,7 @@ export type PondWaterSurfaceProps = {
   rx: number;
   rz: number;
   position?: [number, number, number];
-  /** 与驳岸走向对齐的水平微倾角，沿用既有池塘的 0.08~0.1 弧度习惯 */
+  /** 与驳岸走向对齐的水平微倾角（宜小，过大水面会翘离地面） */
   tilt?: number;
   color?: string;
   mirror?: number;
@@ -50,7 +50,7 @@ export function PondWaterSurface({
   rx,
   rz,
   position = [0.05, -0.015, -0.05],
-  tilt = 0.1,
+  tilt = 0.02,
   color = "#28545a",
   mirror = 0.48,
   mixStrength = 2.8,

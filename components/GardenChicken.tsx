@@ -28,7 +28,8 @@ export function GardenChicken({
   homeRadius = 6,
 }: GardenChickenProps) {
   const { groupRef, isMovingRef } = useWanderMovement({
-    home: position,
+    homeX: position[0],
+    homeZ: position[2],
     initialRotation: rotation,
     // 略慢一点，让 Walk 步伐跟得上位移
     speed: 0.42 + (wanderSeed % 7) * 0.04,

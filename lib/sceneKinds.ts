@@ -10,4 +10,4 @@ export const SCENE_LABELS: Record<SceneKind, string> = {
   courtyard: "四进合院",
 };
 
-export const DEFAULT_SCENE: SceneKind = "courtyard";
+export const DEFAULT_SCENE: SceneKind = "cottage";

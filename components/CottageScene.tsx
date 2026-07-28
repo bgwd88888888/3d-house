@@ -19,6 +19,7 @@ import {
 import { useWallTextures } from "@/hooks/useWallTextures";
 import { useRoofTextures } from "@/hooks/useRoofTextures";
 import { useWoodTextures } from "@/hooks/useWoodTextures";
+import { usePathTextures } from "@/hooks/usePathTextures";
 import {
   applyRoofTilingBreaker,
   applyWallWeathering,
@@ -46,6 +47,7 @@ export function CottageScene({ stage }: CottageSceneProps) {
   const wallTextures = useWallTextures();
   const roofTextures = useRoofTextures();
   const woodTextures = useWoodTextures();
+  const pathTextures = usePathTextures();
   const layers = useMemo(() => buildHouseLayers(stage), [stage]);
 
   useEffect(() => {
@@ -78,14 +80,6 @@ export function CottageScene({ stage }: CottageSceneProps) {
       side={THREE.DoubleSide}
       onBeforeCompile={applyRoofTilingBreaker}
       customProgramCacheKey={() => "cottage-roof-tiling-breaker-v4"}
-    />
-  );
-  const baseMat = (
-    <meshStandardMaterial
-      color="#7a818a"
-      roughness={0.9}
-      metalness={0.03}
-      envMapIntensity={0.2}
     />
   );
   const woodMat = (
@@ -122,22 +116,23 @@ export function CottageScene({ stage }: CottageSceneProps) {
       reflectivity={0.55}
     />
   );
+  // 与门前小路同一套 PavingStones070
   const stepMat = (
     <meshStandardMaterial
-      color="#aeb3b8"
-      roughness={0.92}
-      metalness={0.02}
-      envMapIntensity={0.18}
+      map={pathTextures.secondary.map}
+      normalMap={pathTextures.secondary.normalMap}
+      roughnessMap={pathTextures.secondary.roughnessMap}
+      color="#c4bbb0"
+      roughness={1}
+      metalness={0.04}
+      normalScale={new THREE.Vector2(1.1, 1.1)}
+      envMapIntensity={0.22}
     />
   );
 
   return (
     <>
-      {layers.foundations ? (
-        <mesh geometry={layers.foundations} castShadow receiveShadow>
-          {baseMat}
-        </mesh>
-      ) : null}
+      {/* 不再画外露地基白条；墙体贴地 */}
       {layers.walls ? (
         <mesh geometry={layers.walls} castShadow receiveShadow>
           {wallMat}

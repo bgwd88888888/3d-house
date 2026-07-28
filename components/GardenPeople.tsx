@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 合院人物：中间各进院子走动。
+ * 合院人物：写实贴图角色，中间各进院子走动。
  */
 import { GARDEN_CHARACTER_MODELS } from "@/hooks/useGardenCharacter";
 import {
@@ -19,7 +19,7 @@ const GARDEN_PEOPLE: readonly GardenPerson[] = [
     position: [-3.5, -0.02, 22],
     rotation: Math.PI,
     scale: 1,
-    modelUrl: GARDEN_CHARACTER_MODELS.woman,
+    modelUrl: GARDEN_CHARACTER_MODELS.womanAvaturn,
     animationOffset: 0.18,
     animationSpeed: 0.96,
     wanderSeed: 42,
@@ -30,7 +30,7 @@ const GARDEN_PEOPLE: readonly GardenPerson[] = [
     position: [4, -0.02, 8],
     rotation: Math.PI * 0.9,
     scale: 1,
-    modelUrl: GARDEN_CHARACTER_MODELS.casual,
+    modelUrl: GARDEN_CHARACTER_MODELS.man,
     animationOffset: 0.08,
     animationSpeed: 0.88,
     wanderSeed: 11,
@@ -41,7 +41,7 @@ const GARDEN_PEOPLE: readonly GardenPerson[] = [
     position: [-5.5, -0.02, -5],
     rotation: 0.4,
     scale: 0.98,
-    modelUrl: GARDEN_CHARACTER_MODELS.hoodie,
+    modelUrl: GARDEN_CHARACTER_MODELS.womanRpm,
     animationOffset: 0.36,
     animationSpeed: 1.04,
     wanderSeed: 23,
@@ -52,7 +52,7 @@ const GARDEN_PEOPLE: readonly GardenPerson[] = [
     position: [2, -0.02, -19],
     rotation: 1.1,
     scale: 1,
-    modelUrl: GARDEN_CHARACTER_MODELS.farmer,
+    modelUrl: GARDEN_CHARACTER_MODELS.womanRpm,
     animationOffset: 0.61,
     animationSpeed: 1.0,
     wanderSeed: 37,

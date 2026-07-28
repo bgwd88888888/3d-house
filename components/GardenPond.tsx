@@ -360,7 +360,7 @@ function BankRing() {
     <>
       {/* 碎石内圈：紧贴水线的石质驳岸（偏湿暗） */}
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.028, 0]}
         scale={[stoneRx, stoneRz, 1]}
         receiveShadow
@@ -379,7 +379,7 @@ function BankRing() {
       </mesh>
       {/* 略抬的碎石外缘，给驳岸一点台阶体积 */}
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.01, 0]}
         scale={[stoneRx * 1.04, stoneRz * 1.04, 1]}
         receiveShadow
@@ -399,7 +399,7 @@ function BankRing() {
       </mesh>
       {/* 泥岸外圈，衔接草地 */}
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.045, 0]}
         scale={[bankRx, bankRz, 1]}
         receiveShadow
@@ -418,7 +418,7 @@ function BankRing() {
       </mesh>
       {/* 浅水底：偏橄榄泥色，近岸透出，中心略深（配合半透明水面） */}
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.068, 0]}
         scale={[waterRx * 0.98, waterRz * 0.98, 1]}
         receiveShadow
@@ -434,7 +434,7 @@ function BankRing() {
         />
       </mesh>
       <mesh
-        rotation={[-Math.PI / 2, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0.02, 0]}
         position={[0, -0.052, 0]}
         scale={[waterRx * 0.52, waterRz * 0.52, 1]}
         receiveShadow
@@ -574,15 +574,13 @@ export function GardenPond() {
     <group position={[GARDEN_POND.x, 0, GARDEN_POND.z]}>
       <BankRing />
 
-      <group position={[0, -0.045, 0]}>
-        <primitive object={assets.basin} />
-      </group>
+      {/* 不再放 AssetQuest Pond_2 盆体：多边形托盘会从圆形驳岸下露出，显多余 */}
 
       <PondWaterSurface
         rx={GARDEN_POND.waterRx}
         rz={GARDEN_POND.waterRz}
         position={[0.05, -0.008, -0.05]}
-        tilt={0.1}
+        tilt={0.02}
         // 近景强化：更高分辨率镜面 + 对比，天空/树倒影更清晰
         color="#5f8f7e"
         mirror={0.72}

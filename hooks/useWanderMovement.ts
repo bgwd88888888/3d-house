@@ -18,7 +18,8 @@ import {
 } from "@/lib/gardenNavigation";
 
 type WanderOptions = {
-  home: [number, number, number];
+  homeX: number;
+  homeZ: number;
   initialRotation: number;
   /** 移动速度（场景单位/秒） */
   speed?: number;
@@ -32,10 +33,28 @@ type WanderState = {
   timer: number;
   target: Vec2 | null;
   facing: number;
+  /** 连续无法迈步的时间，用于脱困 */
+  stuckTime: number;
 };
 
+/** 出生点若在障碍里，螺旋外扩找最近可行走点 */
+function resolveSpawn(x: number, z: number, agentRadius: number): Vec2 {
+  if (isWalkable(x, z, agentRadius)) return { x, z };
+  for (let ring = 1; ring <= 12; ring += 1) {
+    const radius = ring * 0.55;
+    for (let i = 0; i < 12; i += 1) {
+      const angle = (i / 12) * Math.PI * 2;
+      const nx = x + Math.cos(angle) * radius;
+      const nz = z + Math.sin(angle) * radius;
+      if (isWalkable(nx, nz, agentRadius)) return { x: nx, z: nz };
+    }
+  }
+  return { x, z };
+}
+
 export function useWanderMovement({
-  home,
+  homeX,
+  homeZ,
   initialRotation,
   speed = 1.35,
   homeRadius = DEFAULT_HOME_RADIUS,
@@ -45,19 +64,28 @@ export function useWanderMovement({
   const groupRef = useRef<Group>(null);
   const isMovingRef = useRef(false);
   const randomRef = useRef(createSeededRandom(seed));
+  const homePosRef = useRef<Vec2>({ x: homeX, z: homeZ });
   const stateRef = useRef<WanderState>({
     mode: "idle",
     timer: 0.6 + randomRef.current() * 1.8,
     target: null,
     facing: initialRotation,
+    stuckTime: 0,
   });
 
   useEffect(() => {
+    const spawn = resolveSpawn(homeX, homeZ, agentRadius);
+    homePosRef.current = spawn;
     const group = groupRef.current;
     if (!group) return;
-    group.position.set(home[0], home[1], home[2]);
+    group.position.set(spawn.x, 0, spawn.z);
     group.rotation.set(0, initialRotation, 0);
-  }, [home, initialRotation]);
+    stateRef.current.facing = initialRotation;
+    stateRef.current.mode = "idle";
+    stateRef.current.target = null;
+    stateRef.current.stuckTime = 0;
+    stateRef.current.timer = 0.4 + randomRef.current() * 1.2;
+  }, [homeX, homeZ, initialRotation, agentRadius]);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -66,14 +94,20 @@ export function useWanderMovement({
     const dt = Math.min(delta, 0.05);
     const state = stateRef.current;
     const random = randomRef.current;
-    const homePos: Vec2 = { x: home[0], z: home[2] };
+    const homePos = homePosRef.current;
 
     state.timer -= dt;
 
     if (state.mode === "idle") {
       isMovingRef.current = false;
+      state.stuckTime = 0;
       if (state.timer <= 0) {
-        const target = sampleWanderTarget(homePos, random, homeRadius, agentRadius);
+        const target = sampleWanderTarget(
+          homePos,
+          random,
+          homeRadius,
+          agentRadius,
+        );
         if (target) {
           state.mode = "walk";
           state.target = target;
@@ -90,6 +124,7 @@ export function useWanderMovement({
       state.mode = "idle";
       state.target = null;
       state.timer = 1.2 + random() * 2.8;
+      state.stuckTime = 0;
       isMovingRef.current = false;
       return;
     }
@@ -103,6 +138,7 @@ export function useWanderMovement({
       state.mode = "idle";
       state.target = null;
       state.timer = 1.4 + random() * 3.2;
+      state.stuckTime = 0;
       isMovingRef.current = false;
       return;
     }
@@ -127,6 +163,7 @@ export function useWanderMovement({
         z: homePos.z + (random() - 0.5) * 2,
       };
       isMovingRef.current = true;
+      state.stuckTime = 0;
       return;
     }
 
@@ -134,10 +171,11 @@ export function useWanderMovement({
       pos.x = nextX;
       pos.z = nextZ;
       isMovingRef.current = true;
+      state.stuckTime = 0;
       return;
     }
 
-    // 撞障：试着侧向绕开，失败则重新选目标
+    // 撞障：试着侧向绕开
     const side = random() > 0.5 ? 1 : -1;
     const slideX = pos.x + dirZ * side * step;
     const slideZ = pos.z - dirX * side * step;
@@ -147,6 +185,28 @@ export function useWanderMovement({
       state.facing += side * 0.7;
       group.rotation.y = state.facing;
       isMovingRef.current = true;
+      state.stuckTime = 0;
+      return;
+    }
+
+    state.stuckTime += dt;
+    // 卡住超过 1.2s：拉回可走点并重选目标，避免永远顶在树/墙边
+    if (state.stuckTime > 1.2) {
+      const rescue = resolveSpawn(pos.x, pos.z, agentRadius);
+      pos.x = rescue.x;
+      pos.z = rescue.z;
+      state.target = sampleWanderTarget(
+        homePos,
+        random,
+        homeRadius,
+        agentRadius,
+      );
+      state.stuckTime = 0;
+      state.timer = state.target ? 3 + random() * 3 : 1;
+      if (!state.target) {
+        state.mode = "idle";
+        isMovingRef.current = false;
+      }
       return;
     }
 
