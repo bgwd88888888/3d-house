@@ -18,6 +18,7 @@ import {
   SCENE_LABELS,
   type SceneKind,
 } from "@/lib/sceneKinds";
+import { FpsOverlay } from "@/components/FpsOverlay";
 
 const CityCanvas = dynamic(
   () =>
@@ -44,6 +45,8 @@ export default function Home() {
         weather={weather}
         scene={scene}
       />
+
+      <FpsOverlay />
 
       <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-2">
         <div
