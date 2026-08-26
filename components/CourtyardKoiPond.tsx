@@ -233,11 +233,8 @@ export function CourtyardKoiPond() {
         position={[0.05, 0.06, -0.05]}
         tilt={0.02}
         color="#2f5f56"
-        mirror={0.4}
-        mixStrength={2.4}
-        mixBlur={1.2}
-        roughness={0.55}
-        metalness={0.45}
+        roughness={0.48}
+        metalness={0.08}
         normalRepeat={1.8}
         normalScale={0.4}
       />

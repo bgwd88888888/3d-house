@@ -236,6 +236,7 @@ export function CityCanvas({
 
       <Suspense fallback={null}>
         <Environment
+          frames={1}
           preset="park"
           environmentIntensity={preset.envIntensity}
         />

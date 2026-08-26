@@ -581,21 +581,11 @@ export function GardenPond() {
         rz={GARDEN_POND.waterRz}
         position={[0.05, -0.008, -0.05]}
         tilt={0.02}
-        // 近景强化：更高分辨率镜面 + 对比，天空/树倒影更清晰
         color="#5f8f7e"
-        mirror={0.72}
-        mixStrength={3.4}
-        mixBlur={0.16}
-        mixContrast={1.55}
-        blur={[72, 24]}
-        roughness={0.045}
-        metalness={0.2}
-        resolution={1024}
+        roughness={0.38}
+        metalness={0.08}
         normalRepeat={3.6}
         normalScale={0.38}
-        distortion={0.14}
-        depthScale={1.05}
-        reflectorOffset={0.05}
         flowSpeed={[0.008, 0.005]}
         opacity={0.9}
       />
