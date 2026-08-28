@@ -70,8 +70,8 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
   },
   {
     kind: "circle",
-    x: 14.2,
-    z: 4.2,
+    x: 7.5,
+    z: 2.2,
     radius: 2.9,
   },
   {
@@ -80,15 +80,8 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
     z: 10.4,
     radius: 3.0,
   },
-  { kind: "circle", x: -16, z: -10, radius: 1.55 },
-  { kind: "circle", x: -17, z: 3, radius: 1.7 },
-  { kind: "circle", x: -13, z: 12, radius: 1.4 },
-  { kind: "circle", x: -5, z: 14, radius: 1.65 },
-  { kind: "circle", x: 16.2, z: 12.4, radius: 1.75 },
-  { kind: "circle", x: 17, z: 8, radius: 1.45 },
-  { kind: "circle", x: 17, z: -4, radius: 1.6 },
-  { kind: "circle", x: 13, z: -13, radius: 1.35 },
-  { kind: "circle", x: -7, z: -14, radius: 1.7 },
+  { kind: "circle", x: 16.6, z: 10.5, radius: 1.55 },
+  { kind: "circle", x: -8.8, z: 3.5, radius: 1.5 },
 ];
 
 const COURTYARD_TREE_OBSTACLES: readonly CircleObstacle[] = [

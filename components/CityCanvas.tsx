@@ -5,7 +5,7 @@
  */
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { BuildStage } from "@/lib/geoBuildings";
 import {
@@ -18,6 +18,7 @@ import {
   type SceneKind,
 } from "@/lib/sceneKinds";
 import { setActiveGardenScene } from "@/lib/gardenNavigation";
+import { COMPOUND_HALF_X, COMPOUND_HALF_Z } from "@/lib/geoCompound";
 import { CityScene } from "./CityScene";
 import { GrassGround } from "./GrassGround";
 import { PrairieSky } from "./PrairieSky";
@@ -42,13 +43,49 @@ type CityCanvasProps = {
   scene?: SceneKind;
 };
 
-function WeatherAtmosphere({ weather }: { weather: WeatherKind }) {
+/**
+ * 阴影只罩院子：正交半宽略大于建筑/外树，近远裁在日光到地面这一段。
+ * 草地接影半径比视锥略小，避开 PCF 在阴影图边缘打出的黑块。
+ */
+const GARDEN_SHADOW = {
+  cottage: { frustum: 44, near: 24, far: 190, grass: 38 },
+  courtyard: {
+    frustum: Math.ceil(Math.max(COMPOUND_HALF_X, COMPOUND_HALF_Z) + 28),
+    near: 20,
+    far: 240,
+    grass: Math.ceil(Math.max(COMPOUND_HALF_X, COMPOUND_HALF_Z) + 20),
+  },
+} as const;
+
+function WeatherAtmosphere({
+  weather,
+  scene = DEFAULT_SCENE,
+}: {
+  weather: WeatherKind;
+  scene?: SceneKind;
+}) {
   const preset = WEATHER_PRESETS[weather];
   const { gl } = useThree();
+  const sunRef = useRef<THREE.DirectionalLight>(null);
+  const shadow = GARDEN_SHADOW[scene] ?? GARDEN_SHADOW.cottage;
 
   useEffect(() => {
     gl.toneMappingExposure = preset.exposure;
   }, [gl, preset.exposure]);
+
+  useLayoutEffect(() => {
+    const light = sunRef.current;
+    if (!light) return;
+    const cam = light.shadow.camera;
+    cam.left = -shadow.frustum;
+    cam.right = shadow.frustum;
+    cam.top = shadow.frustum;
+    cam.bottom = -shadow.frustum;
+    cam.near = shadow.near;
+    cam.far = shadow.far;
+    cam.updateProjectionMatrix();
+    light.shadow.needsUpdate = true;
+  }, [shadow]);
 
   return (
     <>
@@ -70,16 +107,18 @@ function WeatherAtmosphere({ weather }: { weather: WeatherKind }) {
         groundColor={preset.hemiGround}
       />
       <directionalLight
+        ref={sunRef}
         castShadow
         intensity={preset.sunIntensity}
         color={preset.sunColor}
         position={preset.sunPosition}
-        shadow-mapSize={[4096, 4096]}
-        shadow-camera-far={420}
-        shadow-camera-left={-140}
-        shadow-camera-right={140}
-        shadow-camera-top={140}
-        shadow-camera-bottom={-140}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-near={shadow.near}
+        shadow-camera-far={shadow.far}
+        shadow-camera-left={-shadow.frustum}
+        shadow-camera-right={shadow.frustum}
+        shadow-camera-top={shadow.frustum}
+        shadow-camera-bottom={-shadow.frustum}
         // 灯光意图：缩小 PCF 模糊半径，投影边缘更清晰但仍保留柔边，避免生硬锯齿
         shadow-radius={3.5}
         shadow-bias={-0.00012}
@@ -106,9 +145,17 @@ function SceneNavSync({ scene }: { scene: SceneKind }) {
   return null;
 }
 
-/** 西式小院默认首屏：院前人视、略侧微仰，前景路径/池 → 中景房 → 背景树天 */
-const COTTAGE_CAM_EYE = new THREE.Vector3(12.6, 1.48, 15.1);
-const COTTAGE_CAM_TARGET = new THREE.Vector3(1.6, 2.7, 2.4);
+/**
+ * 西式小院默认首屏：院外斜侧、略微仰，前景路径/池 → 中景房 → 背景树天。
+ *
+ * COTTAGE_CAM_EYE — 相机世界坐标
+ *   x 越大越偏房子右侧；y 为人眼高度（越高越俯视，主体越靠上）；z 越大越退到院子前方
+ * COTTAGE_CAM_TARGET — 注视点 / 轨道旋转中心
+ *   x 靠门廊；y 越高越仰视（画面整体越往下）；z 落在房身
+ *   机位较远时 y 要多调一点才看得出仰角变化
+ */
+const COTTAGE_CAM_EYE = new THREE.Vector3(28.6, 3, 33.6);
+const COTTAGE_CAM_TARGET = new THREE.Vector3(1.6, 5.4, 2.4);
 
 function CottageCameraRig({ active }: { active: boolean }) {
   const { camera, controls } = useThree();
@@ -218,7 +265,8 @@ export function CityCanvas({
   return (
     <Canvas
       className={className}
-      shadows
+      shadows="percentage"
+      dpr={[1, 1.5]}
       camera={DEFAULT_CAMERA}
       gl={{
         antialias: true,
@@ -226,13 +274,10 @@ export function CityCanvas({
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: preset.exposure,
       }}
-      onCreated={({ gl }) => {
-        gl.shadowMap.type = THREE.PCFSoftShadowMap;
-      }}
     >
       <SceneNavSync scene={scene} />
       <CottageCameraRig active={scene === "cottage"} />
-      <WeatherAtmosphere weather={weather} />
+      <WeatherAtmosphere weather={weather} scene={scene} />
 
       <Suspense fallback={null}>
         <Environment
@@ -244,7 +289,7 @@ export function CityCanvas({
       </Suspense>
 
       <Suspense fallback={null}>
-        <GrassGround />
+        <GrassGround shadowRadius={GARDEN_SHADOW[scene].grass} />
       </Suspense>
 
       {scene === "cottage" ? <CottageDecor /> : <CourtyardDecor />}

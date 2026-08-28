@@ -45,7 +45,7 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
     background: "#9bd0f0",
     fogColor: "#dde6e2",
     fogNear: 160,
-    fogFar: 560,
+    fogFar: 350,
     exposure: 1.08,
     // 灯光意图：正午偏侧日光——抬高方位角侧移（X 更大、Z 收窄），
     // 高度角约 47°，让墙面产生清晰明暗两面，而非顶光/正面光

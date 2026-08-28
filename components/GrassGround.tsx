@@ -2,25 +2,23 @@
 
 /**
  * 院子草地：大范围 PBR 草坪。
- * - 双尺度贴图 + 多频世界坐标 fbm 斑块，近中远都能读出深浅变化，打破平铺感。
- * - 近院落/近相机加强磨损斑块与碎土点；汀步廊道做缝草+肩带+外晕+外圈草色软接。
- * - 池岸对齐 GARDEN_POND：湿内环→干泥肩→外缘草爬回；破碎边缘避免圆滑色带。
- * - 中远景草甸大块色差/稀疏干斑，外围别成空绿平面。
- * - 院内微起伏（建筑脚底压平）补高低层次；近处叠加解析式法线扰动。
- * - 远处颜色/法线/粗糙度向场景雾色过渡，避免提前变灰的“死绿”。
+ * 房子/合院周围维持近景磨损、池岸、汀步细节；约 50m 外渐变到廉价粗糙草甸。
+ * 733m 大平面不接影（低精度阴影会打出黑块）；院内另铺一小块只接影的平面。
  */
 import { useTexture } from "@react-three/drei";
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useGrassTextures } from "@/hooks/useGrassTextures";
 
-const GRASS_SIZE = 1100;
+const GRASS_SIZE = 733;
 /** 更密的近处草纹，增强草质感与斑块边缘可读性 */
 const GRASS_TILE_METERS = 2.15;
 const GRASS_MACRO_TILE_METERS = 16;
 const GRASS_GROUND_Y = -0.04;
-/** 略加密，让院内微起伏与池边落差可读 */
-const GRASS_SEGMENTS = 220;
+/** 院内接影面略抬高，避开近处微起伏，且不与大草坪 z-fight */
+const GRASS_SHADOW_Y = GRASS_GROUND_Y + 0.08;
+/** 院外起伏用粗网格即可；近景观感主要靠 fragment */
+const GRASS_SEGMENTS = 96;
 const GRASS_NORMAL_SCALE = new THREE.Vector2(2.05, 2.05);
 
 /** 与 GardenPath / GardenPond 世界坐标对齐（西式小院） */
@@ -46,7 +44,12 @@ const DIRT_TEXTURE_URLS = {
   roughnessMap: "/textures/ground-048/Ground048_1K-JPG_Roughness.jpg",
 };
 
-export function GrassGround() {
+type GrassGroundProps = {
+  /** 院内接影半径（米）。大草坪本身不 receiveShadow。 */
+  shadowRadius?: number;
+};
+
+export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
   const textures = useGrassTextures();
   const dirtTextures = useTexture(DIRT_TEXTURE_URLS);
   const fineRepeat = GRASS_SIZE / GRASS_TILE_METERS;
@@ -122,37 +125,30 @@ export function GrassGround() {
           "#include <begin_vertex>",
           /* glsl */ `#include <begin_vertex>
           {
-            // 平面本地 xy → 世界 xz
             vec2 wp0 = (modelMatrix * vec4(transformed, 1.0)).xz;
             float distXZ = length(wp0);
-            // 建筑区保持平整，院外再起轻微起伏
             float yardFlat = smoothstep(55.0, 120.0, distXZ);
-            float h = (gvFbm(wp0 * 0.018) - 0.5) * 2.2 * yardFlat;
-            h += (gvFbm(wp0 * 0.05) - 0.5) * 0.55 * yardFlat;
-
-            // 院内微起伏：建筑脚底压平，前院/侧院保留可读高低层次
-            float houseClear = smoothstep(6.6, 9.2, max(abs(wp0.x) * 0.95, abs(wp0.y) * 1.15));
-            float micro = (gvFbm(wp0 * 0.38 + 2.7) - 0.5) * 0.09;
-            float meso = (gvFbm(wp0 * 0.14 - 1.3) - 0.5) * 0.16;
-            h += (micro + meso) * houseClear * mix(1.0, 0.35, yardFlat);
-
-            // 池岸轻微下凹，草地与驳岸衔接更自然
-            vec2 pondP = (wp0 - vec2(${POND_X.toFixed(2)}, ${POND_Z.toFixed(2)}))
-              / vec2(${POND_RX.toFixed(2)}, ${POND_RZ.toFixed(2)});
-            float pondR = length(pondP);
-            float pondBowl = (1.0 - smoothstep(0.92, 1.55, pondR)) * houseClear;
-            h -= pondBowl * 0.07 * (0.55 + 0.45 * gvFbm(wp0 * 0.55));
-
-            // 汀步廊道轻微踩实下陷
-            float pathD = min(
-              gvSegDist(wp0, vec2(${PATH_DOOR_X.toFixed(2)}, ${PATH_FRONT_Z0.toFixed(2)}),
-                             vec2(${PATH_DOOR_X.toFixed(2)}, ${PATH_FRONT_Z1.toFixed(2)})),
-              gvSegDist(wp0, vec2(${PATH_DOOR_X.toFixed(2)}, ${PATH_SIDE_Z.toFixed(2)}),
-                             vec2(${PATH_SIDE_X1.toFixed(2)}, ${PATH_SIDE_Z.toFixed(2)}))
-            );
-            float pathDip = (1.0 - smoothstep(0.45, 1.55, pathD)) * houseClear;
-            h -= pathDip * 0.035 * (0.6 + 0.4 * gvFbm(wp0 * 0.9));
-
+            float h = (gvNoise(wp0 * 0.018) - 0.5) * 2.2 * yardFlat;
+            if (distXZ < 52.0) {
+              h += (gvFbm(wp0 * 0.05) - 0.5) * 0.55 * yardFlat;
+              float houseClear = smoothstep(6.6, 9.2, max(abs(wp0.x) * 0.95, abs(wp0.y) * 1.15));
+              float micro = (gvFbm(wp0 * 0.38 + 2.7) - 0.5) * 0.09;
+              float meso = (gvFbm(wp0 * 0.14 - 1.3) - 0.5) * 0.16;
+              h += (micro + meso) * houseClear * mix(1.0, 0.35, yardFlat);
+              vec2 pondP = (wp0 - vec2(${POND_X.toFixed(2)}, ${POND_Z.toFixed(2)}))
+                / vec2(${POND_RX.toFixed(2)}, ${POND_RZ.toFixed(2)});
+              float pondR = length(pondP);
+              float pondBowl = (1.0 - smoothstep(0.92, 1.55, pondR)) * houseClear;
+              h -= pondBowl * 0.07 * (0.55 + 0.45 * gvNoise(wp0 * 0.55));
+              float pathD = min(
+                gvSegDist(wp0, vec2(${PATH_DOOR_X.toFixed(2)}, ${PATH_FRONT_Z0.toFixed(2)}),
+                               vec2(${PATH_DOOR_X.toFixed(2)}, ${PATH_FRONT_Z1.toFixed(2)})),
+                gvSegDist(wp0, vec2(${PATH_DOOR_X.toFixed(2)}, ${PATH_SIDE_Z.toFixed(2)}),
+                               vec2(${PATH_SIDE_X1.toFixed(2)}, ${PATH_SIDE_Z.toFixed(2)}))
+              );
+              float pathDip = (1.0 - smoothstep(0.45, 1.55, pathD)) * houseClear;
+              h -= pathDip * 0.035 * (0.6 + 0.4 * gvNoise(wp0 * 0.9));
+            }
             transformed.z += h;
           }
           vGroundWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
@@ -205,6 +201,11 @@ export function GrassGround() {
             float creep = smoothstep(0.35, 0.78, grFbm(wp * freq + 6.1));
             float edge = smoothstep(0.15, 0.75, wear) * (1.0 - smoothstep(0.55, 1.0, wear));
             return wear * (1.0 - creep * edge * 0.85);
+          }
+          vec3 grFarGrass(vec2 wp, vec3 fineSample, vec3 macroSample, float camDist){
+            vec3 grassCol = mix(fineSample, macroSample, mix(0.32, 0.72, smoothstep(40.0, 180.0, camDist)));
+            float farPatch = grNoise(wp * 0.028 + 3.0);
+            return grassCol * mix(0.92, 1.2, farPatch);
           }`,
         )
         .replace(
@@ -214,11 +215,18 @@ export function GrassGround() {
           {
             vec2 wp = vGroundWorld.xz;
             float camDist = length(vViewPosition);
-            // 相机近距额外抬细节（与院落半径解耦，低机位近看也生效）
-            float nearCam = 1.0 - smoothstep(6.0, 22.0, camDist);
+            float yardRad = length(wp);
+            // 合院外沿约 42m；院内保持现有细节，更远再过渡到粗糙草
+            float farLod = smoothstep(48.0, 110.0, yardRad);
 
             vec3 fineSample = texture2D(map, vMapUv).rgb;
             vec3 macroSample = texture2D(map, vMapUv * uMacroScale).rgb;
+
+            vec3 blended;
+            if (farLod > 0.992) {
+              blended = grFarGrass(wp, fineSample, macroSample, camDist);
+            } else {
+            float nearCam = 1.0 - smoothstep(6.0, 22.0, camDist);
             // 实拍贴图密度很高，真实观察距离下很容易被 mipmap 抹成纯色；
             // 中近景就早点接入宏观层，保留贴图本身仍有的明暗/色相差异。
             float macroW = mix(0.12, 0.8, smoothstep(7.0, 55.0, camDist));
@@ -236,7 +244,6 @@ export function GrassGround() {
             grDirtMask = grRagged(grDirtMask, wp, 0.65, 0.52);
 
             // —— 近院落：有机斑块磨损/色差（前院最强，勿画成矩形泥围裙）——
-            float yardRad = length(wp);
             float nearYard = 1.0 - smoothstep(6.0, 34.0, yardRad);
             float nearFocus = max(nearYard, nearCam * 0.9);
             // 中远景草甸权重：院外别成一片空绿
@@ -332,7 +339,7 @@ export function GrassGround() {
             dirtCol *= mix(vec3(1.0), vec3(0.7, 0.78, 0.68), pondWet);
             // 路径外晕/池岸外圈混回草色，软过渡
             float edgeSoft = max(max(pathHalo, pathOuter), max(pondFringe, pondCreep)) * 0.42;
-            vec3 blended = mix(grassCol, dirtCol, grDirtMask * mix(0.72, 0.88, nearCam));
+            blended = mix(grassCol, dirtCol, grDirtMask * mix(0.72, 0.88, nearCam));
             blended = mix(blended, grassCol * vec3(0.9, 0.96, 0.86), edgeSoft * (1.0 - grDirtMask));
 
             // 多尺度斑块：近景碎簇 + 中远景大块草甸色差
@@ -400,6 +407,11 @@ export function GrassGround() {
               ) * edgeBump * mix(1.0, 1.45, nearCam);
             }
 
+            if (farLod > 0.001) {
+              blended = mix(blended, grFarGrass(wp, fineSample, macroSample, camDist), farLod);
+            }
+            }
+
             // 中远景向场景真实雾色靠拢
             #ifdef USE_FOG
               float distFade = smoothstep(fogNear * 0.2, fogFar * 0.92, camDist);
@@ -424,11 +436,13 @@ export function GrassGround() {
           /* glsl */ `#include <normal_fragment_maps>
           {
             float camDist = length(vViewPosition);
+            float farLod = smoothstep(48.0, 110.0, length(vGroundWorld.xz));
             float nFade = mix(1.0, 0.08, smoothstep(26.0, 160.0, camDist));
             normal = normalize(mix(vec3(0.0, 0.0, 1.0), normal, nFade));
-            // 叠加近处程序化簇状凹凸，法线贴图之外再补一层"能被光影读出来"的细节
-            float bumpFade = 1.0 - smoothstep(12.0, 65.0, camDist);
-            normal = normalize(normal + vec3(grBumpGrad * 1.15 * bumpFade, 0.0));
+            if (farLod < 0.85) {
+              float bumpFade = 1.0 - smoothstep(12.0, 65.0, camDist);
+              normal = normalize(normal + vec3(grBumpGrad * 1.15 * bumpFade, 0.0));
+            }
           }`,
         )
         .replace(
@@ -436,26 +450,39 @@ export function GrassGround() {
           /* glsl */ `#include <roughnessmap_fragment>
           {
             float camDist = length(vViewPosition);
+            float farLod = smoothstep(48.0, 110.0, length(vGroundWorld.xz));
             roughnessFactor = mix(roughnessFactor, min(1.0, roughnessFactor + 0.12), smoothstep(35.0, 180.0, camDist));
-            // 干湿/疏密斑块也让粗糙度跟着轻微起伏
-            roughnessFactor = clamp(roughnessFactor + (0.5 - grPatchMid) * 0.1, 0.35, 1.0);
-            float dirtR = texture2D(uDirtRoughnessMap, vMapUv * 0.5).g;
-            roughnessFactor = mix(roughnessFactor, dirtR, grDirtMask * 0.58);
-            // 池岸略湿、粗糙度稍降；路径肩带略干、粗糙略升
-            vec2 pondEllR = (vGroundWorld.xz - vec2(${POND_X.toFixed(2)}, ${POND_Z.toFixed(2)}))
-              / vec2(${POND_WATER_RX.toFixed(2)}, ${POND_WATER_RZ.toFixed(2)});
-            float pondWetR = 1.0 - smoothstep(0.9, 1.4, length(pondEllR));
-            roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.78, pondWetR * 0.5);
-            roughnessFactor = clamp(
-              roughnessFactor + grDirtMask * 0.06 * (1.0 - pondWetR),
-              0.3,
-              1.0
+            if (farLod < 0.85) {
+              roughnessFactor = clamp(roughnessFactor + (0.5 - grPatchMid) * 0.1, 0.35, 1.0);
+              float dirtR = texture2D(uDirtRoughnessMap, vMapUv * 0.5).g;
+              roughnessFactor = mix(roughnessFactor, dirtR, grDirtMask * 0.58);
+              vec2 pondEllR = (vGroundWorld.xz - vec2(${POND_X.toFixed(2)}, ${POND_Z.toFixed(2)}))
+                / vec2(${POND_WATER_RX.toFixed(2)}, ${POND_WATER_RZ.toFixed(2)});
+              float pondWetR = 1.0 - smoothstep(0.9, 1.4, length(pondEllR));
+              roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.78, pondWetR * 0.5);
+              roughnessFactor = clamp(
+                roughnessFactor + grDirtMask * 0.06 * (1.0 - pondWetR),
+                0.3,
+                1.0
+              );
+            }
+          }`,
+        )
+        .replace(
+          "#include <lights_fragment_end>",
+          /* glsl */ `#include <lights_fragment_end>
+          {
+            float shFade = smoothstep(48.0, 110.0, length(vGroundWorld.xz));
+            reflectedLight.directDiffuse = mix(
+              reflectedLight.directDiffuse,
+              reflectedLight.directDiffuse + reflectedLight.indirectDiffuse * 0.25,
+              shFade
             );
           }`,
         );
     };
 
-    mat.customProgramCacheKey = () => `grass-ground-v12-${macroScale.toFixed(3)}`;
+    mat.customProgramCacheKey = () => `grass-ground-v15-${macroScale.toFixed(3)}`;
 
     return mat;
   }, [
@@ -479,15 +506,27 @@ export function GrassGround() {
   }, [material]);
 
   return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, GRASS_GROUND_Y, 0]}
-      receiveShadow
-      material={material}
-    >
-      <planeGeometry
-        args={[GRASS_SIZE, GRASS_SIZE, GRASS_SEGMENTS, GRASS_SEGMENTS]}
-      />
-    </mesh>
+    <>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, GRASS_GROUND_Y, 0]}
+        material={material}
+      >
+        <planeGeometry
+          args={[GRASS_SIZE, GRASS_SIZE, GRASS_SEGMENTS, GRASS_SEGMENTS]}
+        />
+      </mesh>
+      {shadowRadius > 0 ? (
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, GRASS_SHADOW_Y, 0]}
+          receiveShadow
+          renderOrder={-1}
+        >
+          <planeGeometry args={[shadowRadius * 2, shadowRadius * 2]} />
+          <shadowMaterial transparent opacity={0.3} depthWrite={false} />
+        </mesh>
+      ) : null}
+    </>
   );
 }

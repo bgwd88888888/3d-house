@@ -17,8 +17,8 @@ export function GardenPickup() {
 
   return (
     <group
-      // 房子右墙约 x=5.8；停到右侧草坪，略靠前
-      position={[14.2, -0.02, 4.2]}
+      // 右墙 x≈5.8、屋檐≈6.22；贴墙停在侧院中段，避免探出房角被水池树挡住
+      position={[12, -0.02, 3.2]}
       // 车头朝前（+Z），沿侧墙停放
       rotation={[0, 0, 0]}
       scale={PICKUP_SCALE}
