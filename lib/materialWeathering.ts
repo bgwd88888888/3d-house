@@ -146,8 +146,7 @@ export function applyWallWeathering(
 }
 
 /**
- * 屋顶去重复：逐格随机旋转/翻转/偏移 + 多组非整数缩放采样混合，
- * 并同步打散 normal / roughness，打断瓦片贴图拉伸与整齐重复。
+ * 陶土筒瓦轻度风化：微小 UV 偏移与冷暖差，保留瓦垄朝向。
  */
 export function applyRoofTilingBreaker(
   shader: WebGLProgramParametersWithUniforms,
@@ -158,92 +157,30 @@ export function applyRoofTilingBreaker(
       "#include <common>",
       `#include <common>
       ${NOISE_GLSL}
-      // 与 ROOF_TEXTURE_TILE≈1.7 配套：更密格子，逐格打散
-      const float WX_ROOF_CELLS = 3.4;
-      vec2 wxRoofRot90(vec2 p, float k) {
-        float m = floor(mod(k * 4.0, 4.0));
-        if (m < 1.0) return p;
-        if (m < 2.0) return vec2(-p.y, p.x);
-        if (m < 3.0) return -p;
-        return vec2(p.y, -p.x);
+      vec2 wxRoofJitter(vec2 uv) {
+        return uv;
       }
-      vec2 wxRoofBomb(vec2 uv) {
-        float cells = WX_ROOF_CELLS;
-        vec2 cell = floor(uv * cells);
-        vec2 f = fract(uv * cells);
-        float h = wxHash(cell + 3.1);
-        float h2 = wxHash(cell + 17.7);
-        float h3 = wxHash(cell + 29.3);
-        // 大偏移 + 90° 旋转/翻转，打断拉伸对齐
-        vec2 local = f - 0.5;
-        local.x *= mix(1.0, -1.0, step(0.5, h3));
-        local = wxRoofRot90(local, h2);
-        vec2 offset = vec2(h, h2) * 1.35 + vec2(h3, wxHash(cell + 51.0)) * 0.55;
-        float edge = smoothstep(0.0, 0.18, min(min(f.x, f.y), min(1.0 - f.x, 1.0 - f.y)));
-        vec2 warped = (local + 0.5) / cells + cell / cells + mix(vec2(0.0), offset, edge);
-        // 次级格子再抖一次，避免大块仍显重复
-        float cells2 = cells * 1.65;
-        vec2 cellB = floor(uv * cells2);
-        float hb = wxHash(cellB + 77.0);
-        warped += (vec2(hb, wxHash(cellB + 91.0)) - 0.5) * 0.22 * edge;
-        return warped;
+      float wxRoofTint(vec2 uv) {
+        return wxFbm(uv * 0.28 + 4.2);
       }
-      vec2 wxRoofUvB(vec2 uv) {
-        vec2 p = uv * 1.91 + vec2(13.7, 7.1);
-        return vec2(p.x * 0.97 - p.y * 0.18, p.x * 0.18 + p.y * 0.97);
-      }
-      vec2 wxRoofUvC(vec2 uv) {
-        vec2 p = uv * 2.63;
-        return vec2(p.x * 0.88 - p.y * 0.34, p.x * 0.34 + p.y * 0.88) + vec2(4.3, 19.6);
-      }
-      vec2 wxRoofUvD(vec2 uv) {
-        // 接近正交的慢速错位层，压低长向拉伸感
-        return uv * vec2(0.73, 1.27) + vec2(27.1, 5.4)
-          + wxFbm(uv * 0.35 + 6.0) * 0.15;
-      }
-      float wxRoofBlendMask(vec2 uv) {
-        return smoothstep(0.18, 0.82, wxFbm(uv * 0.32 + 2.0));
-      }
-      float wxRoofBlendMask2(vec2 uv) {
-        return smoothstep(0.22, 0.86, wxNoise(uv * 0.48 + 8.5));
-      }
-      float wxRoofBlendMask3(vec2 uv) {
-        return smoothstep(0.28, 0.8, wxFbm(uv * 0.19 + 15.0)) * 0.7
-          + smoothstep(0.4, 0.9, wxNoise(uv * 0.9 + 33.0)) * 0.3;
+      float wxRoofShade(vec2 uv) {
+        return wxNoise(uv * 1.1 + 12.0);
       }
       float wxRoofTileVar(vec2 uv) {
-        return wxHash(floor(uv * WX_ROOF_CELLS) + 41.0);
-      }
-      float wxRoofTileVar2(vec2 uv) {
-        return wxHash(floor(uv * WX_ROOF_CELLS * 1.65) + 63.0);
+        return wxFbm(uv * 0.55 + 41.0);
       }
       `,
     )
     .replace(
       "#include <map_fragment>",
       `#ifdef USE_MAP
-        vec2 wxUvA = wxRoofBomb(vMapUv);
-        vec4 wxRoofA = texture2D( map, wxUvA );
-        vec4 wxRoofB = texture2D( map, wxRoofUvB(wxUvA) );
-        vec4 wxRoofC = texture2D( map, wxRoofUvC(vMapUv) );
-        vec4 wxRoofD = texture2D( map, wxRoofUvD(wxUvA) );
-        float wxBlend = wxRoofBlendMask(vMapUv) * 0.9;
-        float wxBlend2 = wxRoofBlendMask2(vMapUv) * 0.68;
-        float wxBlend3 = wxRoofBlendMask3(vMapUv) * 0.48;
-        vec4 sampledDiffuseColor = mix(wxRoofA, wxRoofB, wxBlend);
-        sampledDiffuseColor = mix(sampledDiffuseColor, wxRoofC, wxBlend2);
-        sampledDiffuseColor = mix(sampledDiffuseColor, wxRoofD, wxBlend3);
-        float wxRoofTint = wxFbm(vMapUv * 0.42 + 4.2);
-        float wxRoofShade = wxNoise(vMapUv * 1.35 + 12.0);
-        float wxRoofMacro = wxFbm(vMapUv * 0.18 + 55.0);
+        vec4 sampledDiffuseColor = texture2D( map, wxRoofJitter(vMapUv) );
+        float wxTint = wxRoofTint(vMapUv);
+        float wxShade = wxRoofShade(vMapUv);
         float wxTile = wxRoofTileVar(vMapUv);
-        float wxTile2 = wxRoofTileVar2(vMapUv);
-        sampledDiffuseColor.rgb *= mix(0.66, 1.22, wxRoofTint);
-        sampledDiffuseColor.rgb *= mix(0.82, 1.12, wxRoofShade);
-        sampledDiffuseColor.rgb *= mix(0.88, 1.1, wxRoofMacro);
-        // 逐瓦冷暖/明暗，进一步打散重复与拉伸感
-        sampledDiffuseColor.rgb *= mix(vec3(0.8, 0.76, 0.72), vec3(1.16, 1.06, 0.94), wxTile);
-        sampledDiffuseColor.rgb *= mix(vec3(0.9, 0.88, 0.86), vec3(1.08, 1.02, 0.96), wxTile2);
+        sampledDiffuseColor.rgb *= mix(0.9, 1.08, wxTint);
+        sampledDiffuseColor.rgb *= mix(0.92, 1.06, wxShade);
+        sampledDiffuseColor.rgb *= mix(vec3(0.9, 0.86, 0.82), vec3(1.08, 1.02, 0.96), wxTile);
         diffuseColor *= sampledDiffuseColor;
       #endif
       `,
@@ -260,17 +197,7 @@ export function applyRoofTilingBreaker(
         #endif
         normal = normalize( normalMatrix * normal );
       #elif defined( USE_NORMALMAP_TANGENTSPACE )
-        vec2 wxNUv = wxRoofBomb(vNormalMapUv);
-        vec3 wxNormA = texture2D( normalMap, wxNUv ).xyz * 2.0 - 1.0;
-        vec3 wxNormB = texture2D( normalMap, wxRoofUvB(wxNUv) ).xyz * 2.0 - 1.0;
-        vec3 wxNormC = texture2D( normalMap, wxRoofUvC(vNormalMapUv) ).xyz * 2.0 - 1.0;
-        vec3 wxNormD = texture2D( normalMap, wxRoofUvD(wxNUv) ).xyz * 2.0 - 1.0;
-        float wxNBlend = wxRoofBlendMask(vNormalMapUv) * 0.9;
-        float wxNBlend2 = wxRoofBlendMask2(vNormalMapUv) * 0.68;
-        float wxNBlend3 = wxRoofBlendMask3(vNormalMapUv) * 0.48;
-        vec3 mapN = mix(wxNormA, wxNormB, wxNBlend);
-        mapN = mix(mapN, wxNormC, wxNBlend2);
-        mapN = mix(mapN, wxNormD, wxNBlend3);
+        vec3 mapN = texture2D( normalMap, wxRoofJitter(vNormalMapUv) ).xyz * 2.0 - 1.0;
         mapN.xy *= normalScale;
         normal = normalize( tbn * mapN );
       #elif defined( USE_BUMPMAP )
@@ -282,24 +209,12 @@ export function applyRoofTilingBreaker(
       "#include <roughnessmap_fragment>",
       `float roughnessFactor = roughness;
       #ifdef USE_ROUGHNESSMAP
-        vec2 wxRUv = wxRoofBomb(vRoughnessMapUv);
-        float wxRoofRoughA = texture2D( roughnessMap, wxRUv ).g;
-        float wxRoofRoughB = texture2D( roughnessMap, wxRoofUvB(wxRUv) ).g;
-        float wxRoofRoughC = texture2D( roughnessMap, wxRoofUvC(vRoughnessMapUv) ).g;
-        float wxRoofRoughD = texture2D( roughnessMap, wxRoofUvD(wxRUv) ).g;
-        float wxRoofBlendR = wxRoofBlendMask(vRoughnessMapUv) * 0.9;
-        float wxRoofBlendR2 = wxRoofBlendMask2(vRoughnessMapUv) * 0.68;
-        float wxRoofBlendR3 = wxRoofBlendMask3(vRoughnessMapUv) * 0.48;
-        roughnessFactor = mix(wxRoofRoughA, wxRoofRoughB, wxRoofBlendR);
-        roughnessFactor = mix(roughnessFactor, wxRoofRoughC, wxRoofBlendR2);
-        roughnessFactor = mix(roughnessFactor, wxRoofRoughD, wxRoofBlendR3);
+        roughnessFactor *= texture2D( roughnessMap, wxRoofJitter(vRoughnessMapUv) ).g;
       #endif
       roughnessFactor = clamp(
         roughnessFactor
-          + wxFbm(vRoughnessMapUv * 0.45 + 21.0) * 0.26
-          + wxNoise(vRoughnessMapUv * 2.4 + 44.0) * 0.12
-          + wxRoofTileVar(vRoughnessMapUv) * 0.08
-          + wxRoofTileVar2(vRoughnessMapUv) * 0.05,
+          + wxFbm(vRoughnessMapUv * 0.42 + 21.0) * 0.08
+          + wxRoofTileVar(vRoughnessMapUv) * 0.04,
         0.0,
         1.0
       );

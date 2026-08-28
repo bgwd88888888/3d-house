@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 右墙（无窗侧）水墨山水墙绘：铺满墙面、无画框，上沿压在檐口下方以免穿瓦。
+ * 右墙（山墙、无窗侧）水墨山水墙绘：铺在檐口以下的墙身，无画框。
  */
 import { useTexture } from "@react-three/drei";
 import { useLayoutEffect } from "react";

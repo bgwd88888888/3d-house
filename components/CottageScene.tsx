@@ -5,7 +5,7 @@
  *
  * - stage 变化会重建几何；卸载时 dispose，避免 GPU 泄漏
  * - 默认机位由 CityCanvas 的 CottageCameraRig 负责（院前人视构图）
- * - 墙体用 plaster PBR；屋顶用瓦片 PBR（DoubleSide）
+ * - 墙体用 plaster PBR；屋顶用陶土筒瓦 PBR（DoubleSide）
  * - 无卡通描边，靠 PBR 与光照表现体积
  * - woodwork / metalwork / glass / steps 分层换材质
  */
@@ -45,7 +45,7 @@ type CottageSceneProps = {
 /** 西式单栋小院（可与四进合院场景切换） */
 export function CottageScene({ stage }: CottageSceneProps) {
   const wallTextures = useWallTextures();
-  const roofTextures = useRoofTextures();
+  const roofTextures = useRoofTextures("cottage");
   const woodTextures = useWoodTextures();
   const pathTextures = usePathTextures();
   const layers = useMemo(() => buildHouseLayers(stage), [stage]);
@@ -72,14 +72,14 @@ export function CottageScene({ stage }: CottageSceneProps) {
   const roofMat = (
     <meshStandardMaterial
       {...roofTextures}
-      color="#8a5230"
-      roughness={0.95}
+      color="#d09a6a"
+      roughness={0.92}
       metalness={0.02}
-      normalScale={new THREE.Vector2(1.45, 1.45)}
-      envMapIntensity={0.16}
+      normalScale={new THREE.Vector2(0.7, 0.7)}
+      envMapIntensity={0.2}
       side={THREE.DoubleSide}
       onBeforeCompile={applyRoofTilingBreaker}
-      customProgramCacheKey={() => "cottage-roof-tiling-breaker-v4"}
+      customProgramCacheKey={() => "cottage-roof-barrel-v4"}
     />
   );
   const woodMat = (
