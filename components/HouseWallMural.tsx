@@ -6,6 +6,7 @@
 import { useTexture } from "@react-three/drei";
 import { useLayoutEffect } from "react";
 import * as THREE from "three";
+import type { WebGLProgramParametersWithUniforms } from "three";
 import { DEFAULT_HOUSE_SPEC } from "@/lib/geoBuildings";
 
 const MURAL_URL = "/textures/wall-mural/shanshui.png";
@@ -14,6 +15,20 @@ const MURAL_URL = "/textures/wall-mural/shanshui.png";
 const TOP_CLEARANCE = 0.55;
 /** 左右略收，避免与转角墙体 z-fight */
 const SIDE_INSET = 0.04;
+
+function applyMuralWallBlend(
+  shader: WebGLProgramParametersWithUniforms,
+): void {
+  shader.fragmentShader = shader.fragmentShader.replace(
+    "#include <map_fragment>",
+    `#include <map_fragment>
+    float muralLightness = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+    float muralInkAlpha = 1.0 - smoothstep(0.42, 0.86, muralLightness);
+    float muralPaperAlpha = mix(0.28, 1.0, muralInkAlpha);
+    float muralTopAlpha = 1.0 - smoothstep(0.76, 1.0, vMapUv.y);
+    diffuseColor.a *= muralPaperAlpha * muralTopAlpha;`,
+  );
+}
 
 export function HouseWallMural() {
   const map = useTexture(MURAL_URL);
@@ -26,16 +41,15 @@ export function HouseWallMural() {
   }, [map]);
 
   const artW = depth - SIDE_INSET * 2;
-  const artH = wallHeight - TOP_CLEARANCE;
-  // 贴紧右墙外侧；底边落在勒脚顶，顶边在墙顶以下
+  const artH = foundationHeight + wallHeight - TOP_CLEARANCE;
+  // 贴紧右墙外侧；底边落地，顶边位置保持不变
   const x = width / 2 + 0.02;
-  const y = foundationHeight + artH * 0.5;
+  const y = artH * 0.5;
 
   return (
     <mesh
       position={[x, y, 0]}
       rotation={[0, Math.PI / 2, 0]}
-      castShadow
       receiveShadow
     >
       <planeGeometry args={[artW, artH]} />
@@ -45,6 +59,13 @@ export function HouseWallMural() {
         metalness={0.02}
         envMapIntensity={0.26}
         color="#ffffff"
+        transparent
+        depthWrite={false}
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-1}
+        onBeforeCompile={applyMuralWallBlend}
+        customProgramCacheKey={() => "house-mural-wall-blend-v2"}
       />
     </mesh>
   );

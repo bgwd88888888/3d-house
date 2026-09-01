@@ -23,13 +23,12 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const FOUNDATION_HEIGHT = 0.42;
-/** 屋顶下沉与墙体重叠，避免屋檐透出背景缝隙 */
-const ROOF_BASE_GAP = -0.12;
 const ROOF_OVERHANG = 0.42;
 /** 山墙方向只略出檐，避免看起来像四面都铺瓦 */
 const GABLE_OVERHANG = 0.16;
 /** 山墙与前后墙厚度，左右整面挤出，避免再叠一层长方体 */
 const WALL_THICK = 0.36;
+const WALL_FACE_OVERLAP = 0.01;
 
 export type BuildStage = "base" | "roof" | "door" | "windows" | "details";
 
@@ -137,9 +136,9 @@ export const DEFAULT_HOUSE_SPEC: HouseSpec = {
   chimney: {
     width: 0.82,
     depth: 0.82,
-    height: 3.35,
+    height: 4.05,
     x: 2.35,
-    z: 1.1,
+    z: -1.1,
   },
   steps: {
     upperWidth: 2.25,
@@ -448,9 +447,11 @@ type RoofVert = { p: [number, number, number]; uv: [number, number] };
 
 function roofExtent(spec: HouseSpec) {
   const ridgeHalf = spec.width * 0.5 + GABLE_OVERHANG;
+  const wallSlopeHalf = spec.depth * 0.5;
   const slopeHalf = spec.depth * 0.5 + spec.roofOverhang;
-  const baseY = spec.wallHeight + ROOF_BASE_GAP;
   const peakY = spec.wallHeight + spec.roofHeight;
+  // 出檐沿山墙坡线继续向下延伸，保证屋面与山墙同坡
+  const baseY = peakY - (spec.roofHeight / wallSlopeHalf) * slopeHalf;
   return { ridgeHalf, slopeHalf, baseY, peakY };
 }
 
@@ -472,11 +473,16 @@ function makeGableRoof(spec: HouseSpec): THREE.BufferGeometry {
   const point = (side: 1 | -1, t: number, x: number): RoofVert => {
     const dirZ = side * slopeHalf;
     const dirY = baseY - peakY;
-    const nZ = -dirY / slopeLen;
-    const nY = dirZ / slopeLen;
+    const nZ = (-dirY * side) / slopeLen;
+    const nY = slopeHalf / slopeLen;
+    const eaveWaveFade = Math.min(1, (1 - t) * 6);
     const wave =
       BARREL_AMP *
-      Math.pow(0.5 + 0.5 * Math.cos((x * Math.PI * 2) / BARREL_PITCH), 1.12);
+      Math.pow(
+        0.5 + 0.5 * Math.cos((x * Math.PI * 2) / BARREL_PITCH),
+        1.12,
+      ) *
+      eaveWaveFade;
     return {
       p: [
         x,
@@ -555,13 +561,13 @@ function makeFrontWall(
 ): THREE.BufferGeometry {
   const hz = spec.depth * 0.5;
   const geometry = makeBox(
-    spec.width - WALL_THICK * 2,
+    spec.width - WALL_FACE_OVERLAP * 2,
     spec.wallHeight,
     WALL_THICK,
     new THREE.Vector3(
       0,
       spec.wallHeight * 0.5,
-      zSign * (hz - WALL_THICK * 0.5),
+      zSign * (hz - WALL_THICK * 0.5 + WALL_FACE_OVERLAP),
     ),
   );
   applyWorldWallUvs(geometry, "xy", spec);
@@ -625,6 +631,7 @@ function addGableBargeboards(layers: LayerParts, spec: HouseSpec): void {
     for (const zSign of [-1, 1] as const) {
       const board = new THREE.BoxGeometry(boardW, boardH, rakeLen + 0.08);
       scaleBoxUvs(board, boardW, boardH, rakeLen + 0.08, WOOD_TEXTURE_TILE);
+      board.translate(0, -boardH * 0.55, 0);
       board.rotateX(zSign > 0 ? pitch : -pitch);
       const midZ = zSign * hd * 0.5;
       const midY = (y0 + y1) * 0.5;
@@ -644,17 +651,20 @@ function addRoofRafters(layers: LayerParts, spec: HouseSpec): void {
   const thk = 0.09;
 
   for (const side of [-1, 1] as const) {
+    const slopeRotation = side > 0 ? pitch : -pitch;
     const fascia = new THREE.BoxGeometry(ridgeHalf * 2 + 0.12, 0.16, 0.08);
     scaleBoxUvs(fascia, ridgeHalf * 2 + 0.12, 0.16, 0.08, WOOD_TEXTURE_TILE);
-    fascia.rotateX(side < 0 ? pitch : -pitch);
+    fascia.rotateX(slopeRotation);
     fascia.translate(0, baseY - 0.02, side * slopeHalf);
     layers.woodwork.push(fascia);
+
+    if (side < 0) continue;
 
     for (let x = -ridgeHalf + 0.3; x <= ridgeHalf - 0.3; x += spacing) {
       const rafter = new THREE.BoxGeometry(thk, ht, len);
       scaleBoxUvs(rafter, thk, ht, len, WOOD_TEXTURE_TILE);
-      rafter.translate(0, -ht * 0.62, side * (len * 0.18));
-      rafter.rotateX(side < 0 ? pitch : -pitch);
+      rafter.translate(0, -ht, -side * (len * 0.5));
+      rafter.rotateX(slopeRotation);
       rafter.translate(x, baseY, side * slopeHalf);
       layers.woodwork.push(rafter);
     }
