@@ -24,8 +24,8 @@ const GRASS_NORMAL_SCALE = new THREE.Vector2(2.05, 2.05);
 /** 与 GardenPath / GardenPond 世界坐标对齐（西式小院） */
 const PATH_DOOR_X = 2.25;
 const PATH_FRONT_Z0 = 6.48;
-/** 前门廊末石中心约 z≈11.63 */
-const PATH_FRONT_Z1 = 11.7;
+/** 前门廊末石接到院门内侧，约 z≈14.5 */
+const PATH_FRONT_Z1 = 14.55;
 /** 侧廊约 sideZ≈7.55 */
 const PATH_SIDE_Z = 7.55;
 /** 侧廊末石约 x≈9.24 */
@@ -81,7 +81,7 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
     const mat = new THREE.MeshStandardMaterial({
       // 贴图与斑块噪声已经承担绝大部分颜色信息；基色只做轻微中性化，
       // 避免"材质色 × 贴图色"双重相乘把草坪压成发黑的橄榄绿。
-      color: "#a8b39a",
+      color: "#96987c",
       roughness: 0.95,
       metalness: 0,
       normalScale: GRASS_NORMAL_SCALE,
@@ -205,7 +205,7 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
           vec3 grFarGrass(vec2 wp, vec3 fineSample, vec3 macroSample, float camDist){
             vec3 grassCol = mix(fineSample, macroSample, mix(0.32, 0.72, smoothstep(40.0, 180.0, camDist)));
             float farPatch = grNoise(wp * 0.028 + 3.0);
-            return grassCol * mix(0.92, 1.2, farPatch);
+            return grassCol * mix(0.86, 1.04, farPatch);
           }`,
         )
         .replace(
@@ -231,8 +231,8 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             // 中近景就早点接入宏观层，保留贴图本身仍有的明暗/色相差异。
             float macroW = mix(0.12, 0.8, smoothstep(7.0, 55.0, camDist));
             vec3 grassCol = mix(fineSample, macroSample, macroW);
-            // 近处略提亮，草叶纹理更易读
-            grassCol *= mix(1.1, 1.0, smoothstep(6.0, 36.0, camDist));
+            // 近处略提亮，但不再把草推成高尔夫球场那种嫩绿
+            grassCol *= mix(1.02, 0.96, smoothstep(6.0, 36.0, camDist));
 
             float dirtMacro = grFbm(wp * 0.014 + 17.3);
             float dirtMeso = grFbm(wp * 0.06 - 4.1);
@@ -375,10 +375,10 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             );
             grPatchMid = patchMid;
             blended *= mix(0.6, 1.32, patchMix);
-            blended *= mix(vec3(1.0), vec3(0.86, 1.06, 0.82), fieldLushIsland * 0.35);
+            blended *= mix(vec3(1.0), vec3(0.9, 1.0, 0.86), fieldLushIsland * 0.28);
 
-            vec3 dry = vec3(1.16, 0.9, 0.66);
-            vec3 lush = vec3(0.76, 1.1, 0.74);
+            vec3 dry = vec3(1.08, 0.92, 0.72);
+            vec3 lush = vec3(0.84, 0.97, 0.78);
             float tone = smoothstep(0.24, 0.76, patchMid * 0.55 + patchCluster * 0.25 + meadow * 0.2);
             tone = mix(tone, tone * 0.5, nearFocus * 0.85);
             tone = mix(tone, min(1.0, tone + 0.24), pondWet);
@@ -412,18 +412,24 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             }
             }
 
-            // 中远景向场景真实雾色靠拢
+            // 中远景收进雾色；掠射（几何地平附近）额外加重，消灭绿/白刀锋。
+            // 院内相机高度约 3m：30m 处仰角 ~0.10，250m 处 ~0.012。
+            vec3 grView = cameraPosition - vGroundWorld;
+            float grElev = grView.y / max(length(grView), 1e-4);
+            float grHorizon = 1.0 - smoothstep(0.012, 0.055, grElev);
             #ifdef USE_FOG
-              float distFade = smoothstep(fogNear * 0.2, fogFar * 0.92, camDist);
+              float distFade = smoothstep(fogNear * 0.5, fogFar * 0.85, camDist);
+              float horizonFade = grHorizon * smoothstep(fogNear * 0.15, fogFar * 0.55, camDist);
             #else
-              float distFade = smoothstep(160.0, 520.0, camDist);
+              float distFade = smoothstep(80.0, 220.0, camDist);
+              float horizonFade = grHorizon * smoothstep(50.0, 150.0, camDist);
             #endif
             float luma = dot(blended, vec3(0.299, 0.587, 0.114));
-            blended = mix(blended, vec3(luma), distFade * 0.16);
+            blended = mix(blended, vec3(luma), distFade * 0.12);
             #ifdef USE_FOG
-              blended = mix(blended, fogColor, distFade * 0.42);
+              blended = mix(blended, fogColor, clamp(distFade * 0.55 + horizonFade * 0.7, 0.0, 1.0));
             #else
-              blended = mix(blended, vec3(0.58, 0.64, 0.52), distFade * 0.3);
+              blended = mix(blended, vec3(0.72, 0.78, 0.76), clamp(distFade * 0.4 + horizonFade * 0.65, 0.0, 1.0));
             #endif
 
             diffuseColor *= vec4(blended, 1.0);
@@ -482,7 +488,7 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
         );
     };
 
-    mat.customProgramCacheKey = () => `grass-ground-v15-${macroScale.toFixed(3)}`;
+    mat.customProgramCacheKey = () => `grass-ground-v18-${macroScale.toFixed(3)}`;
 
     return mat;
   }, [

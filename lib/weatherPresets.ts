@@ -41,11 +41,13 @@ export type WeatherPreset = {
 
 export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
   sunny: {
-    // 白天：通透浅天蓝底 + 灰白雾，与地平线雾化过渡衔接
+    // 白天：通透浅天蓝底。雾色贴齐天空地平（淡蓝灰，不是纸白），
+    // 近距收到默认机位能看见的地平线，消灭绿草/白天刀锋。
+    // 院内主体约 20–50m，fogNear 要让房子/人/树保持清晰。
     background: "#9bd0f0",
-    fogColor: "#dde6e2",
-    fogNear: 160,
-    fogFar: 350,
+    fogColor: "#c5d8e4",
+    fogNear: 78,
+    fogFar: 205,
     exposure: 1.08,
     // 灯光意图：正午偏侧日光——抬高方位角侧移（X 更大、Z 收窄），
     // 高度角约 47°，让墙面产生清晰明暗两面，而非顶光/正面光
@@ -74,9 +76,9 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
   },
   cloudy: {
     background: "#a8b4c0",
-    fogColor: "#667068",
-    fogNear: 80,
-    fogFar: 360,
+    fogColor: "#6a7470",
+    fogNear: 72,
+    fogFar: 230,
     exposure: 0.95,
     sunPosition: [40, 55, 30],
     turbidity: 8.5,
@@ -100,8 +102,8 @@ export const WEATHER_PRESETS: Record<WeatherKind, WeatherPreset> = {
   dusk: {
     background: "#c4a890",
     fogColor: "#8a6e52",
-    fogNear: 70,
-    fogFar: 360,
+    fogNear: 64,
+    fogFar: 220,
     exposure: 1.05,
     sunPosition: [85, 18, 35],
     turbidity: 6.2,

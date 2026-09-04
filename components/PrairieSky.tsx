@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 白天蓝天蓝穹：天顶浅蓝、地平线灰白雾化，与亮地面一致。
+ * 白天蓝天蓝穹：天顶浅蓝、地平淡蓝灰雾化，与远草坪/场景雾衔接。
  */
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -16,11 +16,12 @@ const SKY_COLORS: Record<
   { zenith: string; mid: string; horizon: string; haze: string }
 > = {
   sunny: {
-    // 白天通透浅蓝（偏亮以抵消 ACES）；地平线灰白雾化
+    // 白天通透浅蓝（偏亮以抵消 ACES）。地平用淡蓝灰，不要纸白——
+    // 天空 toneMapped:false，纸白会跟走 ACES 的草地雾对不上，画出刀锋。
     zenith: "#5f9fe0",
     mid: "#9bd0f0",
-    horizon: "#eef2ee",
-    haze: "#e0e7e6",
+    horizon: "#cfe0ea",
+    haze: "#d4e4ec",
   },
   cloudy: {
     zenith: "#5e7084",
@@ -76,13 +77,13 @@ export function PrairieSky({ weather }: PrairieSkyProps) {
 
           // 视野常用仰角大约在 -0.1~0.5 之间；让渐变主要发生在这段范围内，
           // 避免大部分画面都停在同一档「mid」色而显得扁平。
-          vec3 col = mix(uHorizon, uMid, smoothstep(-0.08, 0.10, elev));
-          col = mix(col, uZenith, smoothstep(0.06, 0.46, elev));
+          vec3 col = mix(uHorizon, uMid, smoothstep(-0.10, 0.14, elev));
+          col = mix(col, uZenith, smoothstep(0.08, 0.50, elev));
 
-          // 地平线灰白雾化带，做出真实大气透视的柔和过渡
-          float hazeAmt = 1.0 - smoothstep(-0.10, 0.07, elev);
-          hazeAmt = hazeAmt * hazeAmt * (1.2 - 0.2 * hazeAmt);
-          col = mix(col, uHaze, clamp(hazeAmt * 0.85, 0.0, 1.0));
+          // 加宽带、压强度：柔和大气透视，避免地平一条亮白缎带
+          float hazeAmt = 1.0 - smoothstep(-0.16, 0.16, elev);
+          hazeAmt = hazeAmt * hazeAmt;
+          col = mix(col, uHaze, clamp(hazeAmt * 0.48, 0.0, 1.0));
 
           gl_FragColor = vec4(col, 1.0);
         }
