@@ -1,38 +1,50 @@
 "use client";
 
 /**
- * 西式小院树木：水池外侧一棵，房子对侧墙边一棵。
+ * 西式小院大树：Poly Haven 扫描阔叶，替代 Quaternius 卡通松。
  */
-import { GARDEN_TREE_MODELS } from "@/hooks/useGardenTreeModel";
-import { GardenTree, type GardenTreeProps } from "./GardenTree";
+import {
+  PHOTOGRAM_TREE_MODELS,
+  usePhotogramTreeModel,
+} from "@/hooks/usePhotogramTreeModel";
 
-type GardenTreePlacement = GardenTreeProps & {
-  id: string;
+type PhotogramTreeProps = {
+  modelUrl: string;
+  position: [number, number, number];
+  rotation: number;
+  scale: number | [number, number, number];
 };
 
-const GARDEN_TREES: readonly GardenTreePlacement[] = [
-  {
-    id: "pond-side",
-    modelUrl: GARDEN_TREE_MODELS.pineOne,
-    position: [16.6, -0.03, 10.5],
-    scale: 0.95,
-    rotation: 1.8,
-  },
-  {
-    id: "house-west",
-    modelUrl: GARDEN_TREE_MODELS.pineTwo,
-    position: [-8.8, -0.03, 3.5],
-    scale: 0.95,
-    rotation: 0.4,
-  },
-];
+function PhotogramTree({
+  modelUrl,
+  position,
+  rotation,
+  scale,
+}: PhotogramTreeProps) {
+  const tree = usePhotogramTreeModel(modelUrl);
+
+  return (
+    <group position={position} rotation={[0, rotation, 0]} scale={scale}>
+      <primitive object={tree} />
+    </group>
+  );
+}
 
 export function CottageGardenTrees() {
   return (
     <group>
-      {GARDEN_TREES.map(({ id, ...tree }) => (
-        <GardenTree key={id} {...tree} />
-      ))}
+      <PhotogramTree
+        modelUrl={PHOTOGRAM_TREE_MODELS.islandTwo}
+        position={[14.1, -0.03, 9.3]}
+        rotation={2.18}
+        scale={2.05}
+      />
+      <PhotogramTree
+        modelUrl={PHOTOGRAM_TREE_MODELS.islandOne}
+        position={[-9.05, -0.03, 3.2]}
+        rotation={0.72}
+        scale={1.34}
+      />
     </group>
   );
 }
