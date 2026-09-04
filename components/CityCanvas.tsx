@@ -29,6 +29,7 @@ import { GardenPickup } from "./GardenPickup";
 import { CottageGardenPeople } from "./CottageGardenPeople";
 import { CottageGardenChickens } from "./CottageGardenChickens";
 import { CottageGardenTrees } from "./CottageGardenTrees";
+import { CottageGardenEnclosure } from "./CottageGardenEnclosure";
 import { ChineseGardenFeatures } from "./ChineseGardenFeatures";
 import { CourtyardEntrance } from "./CourtyardEntrance";
 import { CourtyardWallMurals } from "./CourtyardWallMurals";
@@ -57,6 +58,16 @@ const GARDEN_SHADOW = {
   },
 } as const;
 
+/** 合院默认机位约 110m 外俯视；小院近雾会把整座院子泡进白盘子。 */
+function sceneFogRange(
+  scene: SceneKind,
+  near: number,
+  far: number,
+): [number, number] {
+  if (scene !== "courtyard") return [near, far];
+  return [near + 70, far + 115];
+}
+
 function WeatherAtmosphere({
   weather,
   scene = DEFAULT_SCENE,
@@ -68,6 +79,11 @@ function WeatherAtmosphere({
   const { gl } = useThree();
   const sunRef = useRef<THREE.DirectionalLight>(null);
   const shadow = GARDEN_SHADOW[scene] ?? GARDEN_SHADOW.cottage;
+  const [fogNear, fogFar] = sceneFogRange(
+    scene,
+    preset.fogNear,
+    preset.fogFar,
+  );
 
   useEffect(() => {
     gl.toneMappingExposure = preset.exposure;
@@ -92,7 +108,7 @@ function WeatherAtmosphere({
       <color attach="background" args={[preset.background]} />
       <fog
         attach="fog"
-        args={[preset.fogColor, preset.fogNear, preset.fogFar]}
+        args={[preset.fogColor, fogNear, fogFar]}
       />
 
       <PrairieSky weather={weather} />
@@ -210,6 +226,9 @@ function CottageDecor() {
       </Suspense>
       <Suspense fallback={null}>
         <CottageGardenTrees />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CottageGardenEnclosure />
       </Suspense>
     </>
   );

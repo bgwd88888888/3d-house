@@ -231,7 +231,7 @@ function buildStoneLayout(): {
     }
   };
 
-  const frontCount = 6;
+  const frontCount = 9;
   const frontCenters: [number, number][] = [];
   for (let i = 0; i < frontCount; i += 1) {
     const z = PATH_START_Z + i * (STONE_D + STONE_GAP) + STONE_D * 0.5;

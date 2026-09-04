@@ -8,6 +8,10 @@ import {
   KOI_POND_OBSTACLE,
   ROCKERY_OBSTACLE,
 } from "@/lib/geoCompound";
+import {
+  buildCottageYardObstacles,
+  COTTAGE_YARD_BOUNDS,
+} from "@/lib/cottageYard";
 import type { SceneKind } from "@/lib/sceneKinds";
 
 export type Vec2 = { x: number; z: number };
@@ -39,12 +43,7 @@ export type SoftBounds = {
 /** 人物碰撞半径 */
 export const DEFAULT_AGENT_RADIUS = 0.55;
 
-const COTTAGE_BOUNDS: SoftBounds = {
-  minX: -18,
-  maxX: 18,
-  minZ: -16,
-  maxZ: 16,
-};
+const COTTAGE_BOUNDS: SoftBounds = { ...COTTAGE_YARD_BOUNDS };
 
 const COURTYARD_BOUNDS: SoftBounds = {
   minX: -(COMPOUND_HALF_X - 1.2),
@@ -69,10 +68,11 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
     maxZ: 6.15,
   },
   {
-    kind: "circle",
-    x: 7.5,
-    z: 2.2,
-    radius: 2.9,
+    kind: "box",
+    minX: 10.3,
+    maxX: 13.7,
+    minZ: 1.1,
+    maxZ: 7.7,
   },
   {
     kind: "circle",
@@ -80,8 +80,9 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
     z: 10.4,
     radius: 3.0,
   },
-  { kind: "circle", x: 16.6, z: 10.5, radius: 1.55 },
-  { kind: "circle", x: -8.8, z: 3.5, radius: 1.5 },
+  { kind: "circle", x: 14.1, z: 9.3, radius: 2.5 },
+  { kind: "circle", x: -9.05, z: 3.2, radius: 2.3 },
+  ...buildCottageYardObstacles(),
 ];
 
 const COURTYARD_TREE_OBSTACLES: readonly CircleObstacle[] = [

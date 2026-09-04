@@ -23,6 +23,7 @@ const GARDEN_PEOPLE: readonly GardenPerson[] = [
     animationOffset: 0.18,
     animationSpeed: 0.96,
     wanderSeed: 42,
+    homeRadius: 6.2,
   },
   {
     id: "front-door",
@@ -33,6 +34,7 @@ const GARDEN_PEOPLE: readonly GardenPerson[] = [
     animationOffset: 0.08,
     animationSpeed: 0.88,
     wanderSeed: 11,
+    homeRadius: 6.2,
   },
 ];
 
