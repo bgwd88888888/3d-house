@@ -9,7 +9,7 @@
  * - 无卡通描边，靠 PBR 与光照表现体积
  * - woodwork / metalwork / glass / steps 分层换材质
  */
-import { Suspense, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import {
   buildHouseLayers,
@@ -25,8 +25,6 @@ import {
   applyWallWeathering,
   applyWoodEnrichment,
 } from "@/lib/materialWeathering";
-import { HouseWallMural } from "./HouseWallMural";
-
 function disposeLayers(l: CityLayers | null) {
   if (!l) return;
   l.foundations?.dispose();
@@ -162,11 +160,6 @@ export function CottageScene({ stage }: CottageSceneProps) {
         <mesh geometry={layers.steps} castShadow receiveShadow>
           {stepMat}
         </mesh>
-      ) : null}
-      {layers.walls ? (
-        <Suspense fallback={null}>
-          <HouseWallMural />
-        </Suspense>
       ) : null}
     </>
   );

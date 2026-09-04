@@ -127,11 +127,11 @@ export const DEFAULT_HOUSE_SPEC: HouseSpec = {
   windows: {
     width: 1.65,
     height: 2.15,
-    frameDepth: 0.16,
+    frameDepth: 0.24,
     sillHeight: 1.55,
     front: [-2.55],
     left: [-1.75, 2.05],
-    right: [],
+    right: [1.45],
   },
   chimney: {
     width: 0.82,
@@ -1045,6 +1045,27 @@ function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
       ),
       true,
       stepTile,
+    ),
+  );
+
+  // 门楣小披檐：木作，默认机位能读出入口体积
+  const hoodW = spec.door.width + 1.05;
+  const hoodD = 0.78;
+  const hoodY = spec.door.height + 0.42;
+  layers.woodwork.push(
+    makeWoodBox(
+      hoodW,
+      0.1,
+      hoodD,
+      new THREE.Vector3(stepCenterX, hoodY, frontZ + hoodD * 0.42),
+    ),
+  );
+  layers.woodwork.push(
+    makeWoodBox(
+      hoodW + 0.06,
+      0.08,
+      0.08,
+      new THREE.Vector3(stepCenterX, hoodY - 0.08, frontZ + hoodD * 0.78),
     ),
   );
 }
