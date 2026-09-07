@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * 庭院池塘：AssetQuest 盆体/植物 + ambientCG 岩石 PBR + 反射水面。
- * 驳岸由「碎石内圈 + 泥土外圈」两条环带打底，
- * 再环绕散置真实岩石/卵石网格，避免纯色平面圈显得单薄。
+ * 庭院池塘：不规则石岸、淡出的泥岸与现有无反射水面。
+ * 石头跟随岸线成组摆放，复用 AssetQuest 网格与 ambientCG 岩石贴图。
  */
 import { useTexture } from "@react-three/drei";
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useGardenPondAssets } from "@/hooks/useGardenPondAssets";
+import { GARDEN_POND, getPondBankPoint, getPondWaterHeight, POND_WATER_POSITION, POND_WATER_TILT } from "@/lib/gardenPondLayout";
+import { GardenPondBank } from "./GardenPondBank";
 import { PondWaterSurface } from "./PondWaterSurface";
+
+export { GARDEN_POND } from "@/lib/gardenPondLayout";
 
 /** FBX 内嵌 Pond_Plants_Atlas.tga；仓库只有 PNG，且无 TGA loader → 统一改写 */
 const PLANT_ATLAS_PNG =
@@ -51,18 +54,6 @@ function rewritePondTextureUrl(url: string): string {
     return previous ? previous(url) : url;
   });
 }
-
-/** 东南侧空地：房子右前方、皮卡偏南 */
-export const GARDEN_POND = {
-  x: 11.2,
-  z: 10.4,
-  waterRx: 1.7,
-  waterRz: 1.4,
-  bankPad: 0.7,
-} as const;
-
-const STONE_NORMAL = new THREE.Vector2(1.15, 1.15);
-const SOIL_NORMAL = new THREE.Vector2(0.75, 0.75);
 
 type Placed = {
   object: THREE.Object3D;
@@ -118,33 +109,29 @@ function buildBankRockRing(
   rand: () => number,
   rockTemplates: THREE.Object3D[],
   pebbleTemplates: THREE.Object3D[],
-  waterRx: number,
-  waterRz: number,
-  bankRx: number,
-  bankRz: number,
 ): BankRockSpec[] {
   const count = 40;
   const specs: BankRockSpec[] = [];
 
   // 水线关键石：几块更大、半浸的肩石，近景一眼读出驳岸轮廓
-  const keystoneCount = 7;
+  const keystoneAngles = [0.18, 0.5, 0.8, 2.1, 2.5, 4.2, 4.7];
+  const keystoneCount = keystoneAngles.length;
   for (let i = 0; i < keystoneCount; i += 1) {
     const angle =
-      (i / keystoneCount) * Math.PI * 2 + (rand() - 0.5) * 0.28;
+      keystoneAngles[i] + (rand() - 0.5) * 0.28;
     const t = 0.04 + rand() * 0.16;
     const wetness = 0.78 + rand() * 0.22;
-    const rx = waterRx + (bankRx - waterRx) * t;
-    const rz = waterRz + (bankRz - waterRz) * t;
+    const [x, z] = getPondBankPoint(angle, t);
     const source =
       rockTemplates[Math.floor(rand() * rockTemplates.length) % rockTemplates.length];
-    const base = 0.72 + rand() * 0.42;
+    const base = 0.56 + rand() * 0.34;
     specs.push({
       key: `bank-key-${i}`,
       source,
       position: [
-        Math.cos(angle) * rx,
-        -0.08 - rand() * 0.06,
-        Math.sin(angle) * rz,
+        x,
+        getPondWaterHeight(x) - 0.025 - rand() * 0.04,
+        z,
       ],
       rotation: [
         (rand() - 0.5) * 0.45,
@@ -153,7 +140,7 @@ function buildBankRockRing(
       ],
       scale: [
         base * (0.9 + rand() * 0.28),
-        base * (0.55 + rand() * 0.45),
+        base * (0.4 + rand() * 0.3),
         base * (0.9 + rand() * 0.28),
       ],
       tint: WET_ROCK_TINTS[Math.floor(rand() * WET_ROCK_TINTS.length)],
@@ -168,8 +155,7 @@ function buildBankRockRing(
     const t =
       rand() < 0.62 ? 0.02 + rand() * 0.34 : 0.3 + rand() * 0.52;
     const wetness = Math.max(0, 1 - t / 0.4);
-    const rx = waterRx + (bankRx - waterRx) * t;
-    const rz = waterRz + (bankRz - waterRz) * t;
+    const [x, z] = getPondBankPoint(angle, t);
     const useRock = rand() < 0.48;
     const templates = useRock ? rockTemplates : pebbleTemplates;
     const source =
@@ -185,13 +171,13 @@ function buildBankRockRing(
       base * (0.78 + rand() * 0.48),
     ];
     const sink = useRock
-      ? -0.055 - rand() * 0.1 - wetness * 0.025
-      : -0.028 - rand() * 0.055 - wetness * 0.018;
+      ? -0.012 - rand() * 0.035 - wetness * 0.015
+      : -0.004 - rand() * 0.008 - wetness * 0.008;
     const tintPool = wetness > 0.4 ? WET_ROCK_TINTS : ROCK_TINTS;
     specs.push({
       key: `bank-rock-${i}`,
       source,
-      position: [Math.cos(angle) * rx, sink, Math.sin(angle) * rz],
+      position: [x, getPondWaterHeight(x) + sink, z],
       rotation: [
         (rand() - 0.5) * 0.65,
         rand() * Math.PI * 2,
@@ -210,16 +196,17 @@ function buildBankRockRing(
       const nestBase = 0.24 + rand() * 0.4;
       const nestT = Math.min(0.9, t + 0.05 + rand() * 0.16);
       const nestWet = Math.max(0, 1 - nestT / 0.4);
-      const nestRx = waterRx + (bankRx - waterRx) * nestT;
-      const nestRz = waterRz + (bankRz - waterRz) * nestT;
+      const [nestX] = getPondBankPoint(angle + (rand() - 0.5) * 0.24, nestT);
+      const nestY = getPondWaterHeight(nestX) - 0.004 - rand() * 0.008 - nestWet * 0.008;
+      const [, nestZ] = getPondBankPoint(angle + (rand() - 0.5) * 0.24, nestT);
       const nestTintPool = nestWet > 0.4 ? WET_ROCK_TINTS : ROCK_TINTS;
       specs.push({
         key: `bank-nest-${i}`,
         source: nest,
         position: [
-          Math.cos(angle + (rand() - 0.5) * 0.24) * nestRx,
-          -0.014 - rand() * 0.032 - nestWet * 0.012,
-          Math.sin(angle + (rand() - 0.5) * 0.24) * nestRz,
+          nestX,
+          nestY,
+          nestZ,
         ],
         rotation: [
           (rand() - 0.5) * 0.8,
@@ -313,144 +300,6 @@ function bindPlantAtlas(
   });
 }
 
-function BankRing() {
-  const stoneTextures = useTexture({
-    map: "/textures/rock-023/Rock023_1K-JPG_Color.jpg",
-    normalMap: "/textures/rock-023/Rock023_1K-JPG_NormalGL.jpg",
-    roughnessMap: "/textures/rock-023/Rock023_1K-JPG_Roughness.jpg",
-  });
-  const soilTextures = useTexture({
-    map: "/textures/ground-048/Ground048_1K-JPG_Color.jpg",
-    normalMap: "/textures/ground-048/Ground048_1K-JPG_NormalGL.jpg",
-    roughnessMap: "/textures/ground-048/Ground048_1K-JPG_Roughness.jpg",
-  });
-
-  useLayoutEffect(() => {
-    for (const [key, texture] of Object.entries(stoneTextures)) {
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(4.2, 4.2);
-      texture.colorSpace =
-        key === "map" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-      texture.needsUpdate = true;
-    }
-  }, [stoneTextures]);
-
-  useLayoutEffect(() => {
-    for (const [key, texture] of Object.entries(soilTextures)) {
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(2.8, 2.8);
-      texture.colorSpace =
-        key === "map" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-      texture.needsUpdate = true;
-    }
-  }, [soilTextures]);
-
-  const { waterRx, waterRz, bankPad } = GARDEN_POND;
-  const bankRx = waterRx + bankPad;
-  const bankRz = waterRz + bankPad;
-  // 内圈（碎石带）半径介于水面与驳岸之间
-  const stoneRx = waterRx + bankPad * 0.42;
-  const stoneRz = waterRz + bankPad * 0.42;
-  const stoneInner = (0.95 * waterRx) / stoneRx;
-  const bankInner = (0.97 * stoneRx) / bankRx;
-
-  return (
-    <>
-      {/* 碎石内圈：紧贴水线的石质驳岸（偏湿暗） */}
-      <mesh
-        rotation={[-Math.PI / 2, 0.02, 0]}
-        position={[0, -0.028, 0]}
-        scale={[stoneRx, stoneRz, 1]}
-        receiveShadow
-      >
-        <ringGeometry args={[stoneInner, 1, 72]} />
-        <meshStandardMaterial
-          map={stoneTextures.map}
-          normalMap={stoneTextures.normalMap}
-          roughnessMap={stoneTextures.roughnessMap}
-          normalScale={STONE_NORMAL}
-          roughness={0.88}
-          metalness={0.08}
-          envMapIntensity={0.28}
-          color="#5e5850"
-        />
-      </mesh>
-      {/* 略抬的碎石外缘，给驳岸一点台阶体积 */}
-      <mesh
-        rotation={[-Math.PI / 2, 0.02, 0]}
-        position={[0, -0.01, 0]}
-        scale={[stoneRx * 1.04, stoneRz * 1.04, 1]}
-        receiveShadow
-        castShadow
-      >
-        <ringGeometry args={[0.74, 0.98, 56]} />
-        <meshStandardMaterial
-          map={stoneTextures.map}
-          normalMap={stoneTextures.normalMap}
-          roughnessMap={stoneTextures.roughnessMap}
-          normalScale={STONE_NORMAL}
-          roughness={0.96}
-          metalness={0.03}
-          envMapIntensity={0.16}
-          color="#8a8376"
-        />
-      </mesh>
-      {/* 泥岸外圈，衔接草地 */}
-      <mesh
-        rotation={[-Math.PI / 2, 0.02, 0]}
-        position={[0, -0.045, 0]}
-        scale={[bankRx, bankRz, 1]}
-        receiveShadow
-      >
-        <ringGeometry args={[bankInner, 1, 64]} />
-        <meshStandardMaterial
-          map={soilTextures.map}
-          normalMap={soilTextures.normalMap}
-          roughnessMap={soilTextures.roughnessMap}
-          normalScale={SOIL_NORMAL}
-          roughness={1}
-          metalness={0.02}
-          envMapIntensity={0.12}
-          color="#8f8068"
-        />
-      </mesh>
-      {/* 浅水底：偏橄榄泥色，近岸透出，中心略深（配合半透明水面） */}
-      <mesh
-        rotation={[-Math.PI / 2, 0.02, 0]}
-        position={[0, -0.068, 0]}
-        scale={[waterRx * 0.98, waterRz * 0.98, 1]}
-        receiveShadow
-      >
-        <circleGeometry args={[1, 48]} />
-        <meshStandardMaterial
-          map={soilTextures.map}
-          roughnessMap={soilTextures.roughnessMap}
-          color="#3a5240"
-          roughness={1}
-          metalness={0}
-          envMapIntensity={0.08}
-        />
-      </mesh>
-      <mesh
-        rotation={[-Math.PI / 2, 0.02, 0]}
-        position={[0, -0.052, 0]}
-        scale={[waterRx * 0.52, waterRz * 0.52, 1]}
-        receiveShadow
-      >
-        <circleGeometry args={[1, 32]} />
-        <meshStandardMaterial
-          color="#24362c"
-          roughness={1}
-          metalness={0}
-          envMapIntensity={0.05}
-        />
-      </mesh>
-    </>
-  );
-}
-
 function PlacedAsset({
   object,
   position,
@@ -469,6 +318,7 @@ export function GardenPond() {
   const plantMap = useTexture(PLANT_ATLAS_PNG);
 
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Three.js 贴图通过命令式属性同步上传参数。
     plantMap.colorSpace = THREE.SRGBColorSpace;
     plantMap.flipY = false;
     plantMap.anisotropy = 8;
@@ -479,34 +329,36 @@ export function GardenPond() {
     const rocks: Placed[] = [
       {
         object: assets.rocks[0],
-        position: [2.25, 0, 0.4],
-        rotation: [0.05, 0.6, -0.08],
+        position: [2.47, -0.1, -0.3],
+        rotation: [0.02, 0.85, -0.06],
+        scale: [1.04, 0.64, 0.88],
       },
       {
         object: assets.rocks[1],
-        position: [-2.05, 0, -0.75],
+        position: [-1.74, -0.07, -0.82],
         rotation: [-0.06, -0.9, 0.1],
-        scale: 1.05,
+        scale: [0.94, 0.68, 1.12],
       },
       {
         object: assets.rocks[2],
-        position: [0.45, 0, -1.95],
+        position: [1.55, -0.1, -1.56],
         rotation: [0.08, 1.2, -0.05],
-        scale: 0.92,
+        scale: [0.9, 0.62, 1.04],
       },
     ];
 
     const pebbles: Placed[] = [
       {
         object: assets.pebbles[0],
-        position: [1.2, 0, 1.45],
+        position: [0.9, -0.025, 1.4],
         rotation: [0.1, 0.4, -0.12],
+        scale: [0.95, 0.55, 1.18],
       },
       {
         object: assets.pebbles[1],
-        position: [-0.95, 0, -1.6],
+        position: [2.75, -0.03, -1.42],
         rotation: [-0.08, 1.1, 0.15],
-        scale: 1.1,
+        scale: [1.1, 0.65, 0.92],
       },
     ];
 
@@ -552,10 +404,6 @@ export function GardenPond() {
       rand,
       assets.rocks,
       assets.pebbles,
-      GARDEN_POND.waterRx,
-      GARDEN_POND.waterRz,
-      GARDEN_POND.waterRx + GARDEN_POND.bankPad,
-      GARDEN_POND.waterRz + GARDEN_POND.bankPad,
     ).map((spec) => {
       const object = spec.source.clone(true);
       tintClonedObject(object, spec.tint, spec.wetness);
@@ -572,15 +420,15 @@ export function GardenPond() {
 
   return (
     <group position={[GARDEN_POND.x, 0, GARDEN_POND.z]}>
-      <BankRing />
+      <GardenPondBank />
 
       {/* 不再放 AssetQuest Pond_2 盆体：多边形托盘会从圆形驳岸下露出，显多余 */}
 
       <PondWaterSurface
         rx={GARDEN_POND.waterRx}
         rz={GARDEN_POND.waterRz}
-        position={[0.05, -0.008, -0.05]}
-        tilt={0.02}
+        position={POND_WATER_POSITION}
+        tilt={POND_WATER_TILT}
         color="#5f8f7e"
         roughness={0.38}
         metalness={0.08}

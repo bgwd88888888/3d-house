@@ -35,7 +35,8 @@ export function CottageGardenTrees() {
     <group>
       <PhotogramTree
         modelUrl={PHOTOGRAM_TREE_MODELS.islandTwo}
-        position={[14.1, -0.03, 9.3]}
+        // 下沉扫描模型的平底土块，保留上方树根，避免灰色底座浮在草坪上。
+        position={[14.1, -0.28, 9.3]}
         rotation={2.18}
         scale={2.05}
       />
