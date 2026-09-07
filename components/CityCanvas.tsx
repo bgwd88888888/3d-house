@@ -30,6 +30,7 @@ import { CottageGardenPeople } from "./CottageGardenPeople";
 import { CottageGardenChickens } from "./CottageGardenChickens";
 import { CottageGardenTrees } from "./CottageGardenTrees";
 import { CottageGardenEnclosure } from "./CottageGardenEnclosure";
+import { CottageEntrance } from "./CottageEntrance";
 import { ChineseGardenFeatures } from "./ChineseGardenFeatures";
 import { CourtyardEntrance } from "./CourtyardEntrance";
 import { CourtyardWallMurals } from "./CourtyardWallMurals";
@@ -86,6 +87,7 @@ function WeatherAtmosphere({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Three.js 渲染器通过命令式赋值同步天气曝光。
     gl.toneMappingExposure = preset.exposure;
   }, [gl, preset.exposure]);
 
@@ -162,7 +164,7 @@ function SceneNavSync({ scene }: { scene: SceneKind }) {
 }
 
 /**
- * 西式小院默认首屏：院外斜侧、略微仰，前景路径/池 → 中景房 → 背景树天。
+ * 西式小院默认首屏：院外斜侧、轻微俯视，前景路径/池 → 中景房 → 背景树天。
  *
  * COTTAGE_CAM_EYE — 相机世界坐标
  *   x 越大越偏房子右侧；y 为人眼高度（越高越俯视，主体越靠上）；z 越大越退到院子前方
@@ -170,8 +172,9 @@ function SceneNavSync({ scene }: { scene: SceneKind }) {
  *   x 靠门廊；y 越高越仰视（画面整体越往下）；z 落在房身
  *   机位较远时 y 要多调一点才看得出仰角变化
  */
-const COTTAGE_CAM_EYE = new THREE.Vector3(28.6, 3, 33.6);
-const COTTAGE_CAM_TARGET = new THREE.Vector3(1.6, 5.4, 2.4);
+// 距离收近约 6%，降低注视点以减少天空留白；眼位高于 target，避免轨道限位改写首屏角度。
+const COTTAGE_CAM_EYE = new THREE.Vector3(26.98, 6, 31.728);
+const COTTAGE_CAM_TARGET = new THREE.Vector3(1.6, 3.6, 2.4);
 
 function CottageCameraRig({ active }: { active: boolean }) {
   const { camera, controls } = useThree();
@@ -305,6 +308,9 @@ export function CityCanvas({
           environmentIntensity={preset.envIntensity}
         />
         <CityScene stage={stage} scene={scene} />
+        {scene === "cottage" && stage === "details" ? (
+          <CottageEntrance weather={weather} />
+        ) : null}
       </Suspense>
 
       <Suspense fallback={null}>
