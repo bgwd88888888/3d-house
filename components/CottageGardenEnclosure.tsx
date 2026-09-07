@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * 西式小院围合：矮木篱 + 半开院门 + 泥坛 / 灌木丘。
+ * 西式小院围合：矮木篱 + 半开院门 + 疏密错落的低矮灌木。
  * 木作与灌木各自合并成一网格，控制 draw call。
  */
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { useWoodTextures } from "@/hooks/useWoodTextures";
+import { useCottageShrubs } from "@/hooks/useCottageShrubs";
 import { COTTAGE_YARD } from "@/lib/cottageYard";
 
 const WOOD_TILE = 0.42;
@@ -159,118 +160,16 @@ function buildFenceWood(rand: () => number): THREE.BufferGeometry | null {
   return merged;
 }
 
-function tintedIco(
-  rx: number,
-  ry: number,
-  rz: number,
-  x: number,
-  y: number,
-  z: number,
-  color: THREE.Color,
-  rand: () => number,
-): THREE.BufferGeometry {
-  const geometry = new THREE.IcosahedronGeometry(1, 1);
-  geometry.scale(rx, ry, rz);
-  const count = geometry.attributes.position.count;
-  const colors = new Float32Array(count * 3);
-  for (let i = 0; i < count; i += 1) {
-    const n = 0.78 + rand() * 0.34;
-    colors[i * 3] = color.r * n;
-    colors[i * 3 + 1] = color.g * n;
-    colors[i * 3 + 2] = color.b * n;
-  }
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geometry.rotateY(rand() * Math.PI * 2);
-  geometry.translate(x, y, z);
-  return geometry;
-}
-
-type Planting = {
-  foliage: THREE.BufferGeometry | null;
-};
-
-function buildPlanting(rand: () => number): Planting {
-  const hedges: THREE.BufferGeometry[] = [];
-  const olive = new THREE.Color("#4f5c38");
-  const moss = new THREE.Color("#6a7348");
-  const sage = new THREE.Color("#5c6844");
-
-  const clumps: Array<{
-    x: number;
-    z: number;
-    rx: number;
-    ry: number;
-    rz: number;
-    color: THREE.Color;
-  }> = [];
-
-  const { minX, maxX, minZ, maxZ, gateX, gateHalf } = COTTAGE_YARD;
-  const frontZs = 14.55;
-  for (let x = minX + 1.2; x < maxX - 0.8; x += 1.55 + rand() * 0.35) {
-    if (Math.abs(x - gateX) < gateHalf + 0.7) continue;
-    clumps.push({
-      x: x + (rand() - 0.5) * 0.25,
-      z: frontZs + (rand() - 0.5) * 0.18,
-      rx: 0.42 + rand() * 0.28,
-      ry: 0.28 + rand() * 0.14,
-      rz: 0.32 + rand() * 0.16,
-      color: rand() > 0.5 ? olive : sage,
-    });
-  }
-  for (let z = minZ + 1.4; z < maxZ - 1.2; z += 2.1 + rand() * 0.4) {
-    clumps.push({
-      x: maxX - 0.7 + (rand() - 0.5) * 0.15,
-      z,
-      rx: 0.38 + rand() * 0.2,
-      ry: 0.26 + rand() * 0.12,
-      rz: 0.34 + rand() * 0.16,
-      color: moss,
-    });
-  }
-
-  for (const clump of clumps) {
-    hedges.push(
-      tintedIco(
-        clump.rx,
-        clump.ry,
-        clump.rz,
-        clump.x,
-        clump.ry * 0.72,
-        clump.z,
-        clump.color,
-        rand,
-      ),
-    );
-    hedges.push(
-      tintedIco(
-        clump.rx * (0.55 + rand() * 0.25),
-        clump.ry * (0.7 + rand() * 0.25),
-        clump.rz * (0.55 + rand() * 0.25),
-        clump.x + (rand() - 0.5) * clump.rx * 0.7,
-        clump.ry * 0.55,
-        clump.z + (rand() - 0.5) * clump.rz * 0.7,
-        clump.color,
-        rand,
-      ),
-    );
-  }
-
-  return {
-    foliage: mergeGeometries(hedges, false),
-  };
-}
-
 export function CottageGardenEnclosure() {
   const woodTextures = useWoodTextures();
   const fence = useMemo(() => buildFenceWood(mulberry32(904)), []);
-  const planting = useMemo(() => buildPlanting(mulberry32(1203)), []);
+  const foliage = useCottageShrubs();
 
   useLayoutEffect(() => {
     return () => {
       fence?.dispose();
-      planting.foliage?.dispose();
     };
-  }, [fence, planting]);
+  }, [fence]);
 
   return (
     <group>
@@ -286,10 +185,11 @@ export function CottageGardenEnclosure() {
           />
         </mesh>
       ) : null}
-      {planting.foliage ? (
-        <mesh geometry={planting.foliage} castShadow receiveShadow>
+      {foliage ? (
+        <mesh geometry={foliage} castShadow receiveShadow>
           <meshStandardMaterial
             vertexColors
+            side={THREE.DoubleSide}
             color="#d8d4c4"
             roughness={0.94}
             metalness={0}
