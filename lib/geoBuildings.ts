@@ -13,14 +13,20 @@
  * - roofs      前后坡筒瓦 + 屋脊压顶 + 烟囱顶盖
  * - woodwork   门扇 / 门框 / 窗框 / 窗台 / 檐口椽头
  * - metalwork  门把手等五金
+ * - roofMetalwork 排水槽 / 落水管 / 烟口暗部
  * - glass      窗玻璃 / 门上亮窗
+ * - windowInteriors / curtains 窗后暗色内壁 / 浅色窗帘
  * - steps      门前台阶
  *
  * BuildStage 为教学用渐进建造：base → roof → door → windows → details。
  * 窗户不要对侧墙框做 rotateY 拼装（易穿模）；侧窗用 makeSideWindowFrame 按轴向直接建模。
  */
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometryParts as mergeLayer } from "@/lib/mergeGeometryParts";
+import { makeWindowedWallGeometry } from "@/lib/windowedWallGeometry";
+import { makeWindowInteriorParts } from "@/lib/windowInteriorGeometry";
+import { makeChimneyParts } from "@/lib/chimneyGeometry";
+import { makeRoofDrainageParts } from "@/lib/roofDrainageGeometry";
 
 const FOUNDATION_HEIGHT = 0.42;
 const ROOF_OVERHANG = 0.42;
@@ -29,6 +35,8 @@ const GABLE_OVERHANG = 0.16;
 /** 山墙与前后墙厚度，左右整面挤出，避免再叠一层长方体 */
 const WALL_THICK = 0.36;
 const WALL_FACE_OVERLAP = 0.01;
+/** 窗框前缘退入外墙，留出可见的灰泥窗洞侧壁。 */
+const WINDOW_RECESS = 0.12;
 
 export type BuildStage = "base" | "roof" | "door" | "windows" | "details";
 
@@ -38,7 +46,10 @@ export type CityLayers = {
   roofs: THREE.BufferGeometry | null;
   woodwork: THREE.BufferGeometry | null;
   metalwork: THREE.BufferGeometry | null;
+  roofMetalwork: THREE.BufferGeometry | null;
   glass: THREE.BufferGeometry | null;
+  windowInteriors: THREE.BufferGeometry | null;
+  curtains: THREE.BufferGeometry | null;
   steps: THREE.BufferGeometry | null;
 };
 
@@ -70,7 +81,8 @@ export type HouseSpec = {
   chimney: {
     width: number;
     depth: number;
-    height: number;
+    /** 烟囱身高出屋脊的净高度，不包含压顶。 */
+    heightAboveRidge: number;
     x: number;
     z: number;
   };
@@ -90,7 +102,10 @@ type LayerParts = {
   roofs: THREE.BufferGeometry[];
   woodwork: THREE.BufferGeometry[];
   metalwork: THREE.BufferGeometry[];
+  roofMetalwork: THREE.BufferGeometry[];
   glass: THREE.BufferGeometry[];
+  windowInteriors: THREE.BufferGeometry[];
+  curtains: THREE.BufferGeometry[];
   steps: THREE.BufferGeometry[];
 };
 
@@ -114,7 +129,7 @@ export const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
 export const DEFAULT_HOUSE_SPEC: HouseSpec = {
   width: 11.6,
   depth: 8.8,
-  wallHeight: 6.2,
+  wallHeight: 5.1,
   roofHeight: 3.8,
   roofOverhang: ROOF_OVERHANG,
   foundationHeight: FOUNDATION_HEIGHT,
@@ -136,7 +151,7 @@ export const DEFAULT_HOUSE_SPEC: HouseSpec = {
   chimney: {
     width: 0.82,
     depth: 0.82,
-    height: 4.05,
+    heightAboveRidge: 1.6,
     x: 2.35,
     z: -1.1,
   },
@@ -157,7 +172,10 @@ function emptyLayers(): LayerParts {
     roofs: [],
     woodwork: [],
     metalwork: [],
+    roofMetalwork: [],
     glass: [],
+    windowInteriors: [],
+    curtains: [],
     steps: [],
   };
 }
@@ -200,20 +218,27 @@ function scaleBoxUvs(
 
 function applyWorldWallUvs(
   geometry: THREE.BufferGeometry,
-  mode: "xy" | "zy",
   spec: HouseSpec,
 ): void {
   const pos = geometry.getAttribute("position");
   const uv = geometry.getAttribute("uv");
-  if (!pos || !uv) return;
+  const normal = geometry.getAttribute("normal");
+  if (!pos || !uv || !normal) return;
   const hw = spec.width * 0.5;
   const hd = spec.depth * 0.5;
   for (let i = 0; i < pos.count; i += 1) {
     const y = pos.getY(i);
-    if (mode === "xy") {
-      uv.setXY(i, (pos.getX(i) + hw) / WALL_TEXTURE_TILE, y / WALL_TEXTURE_TILE);
-    } else {
+    // 洞口侧壁按法线选择投影面，避免墙厚方向的 UV 被压成一条线。
+    if (Math.abs(normal.getY(i)) > 0.99) {
+      uv.setXY(
+        i,
+        (pos.getX(i) + hw) / WALL_TEXTURE_TILE,
+        (pos.getZ(i) + hd) / WALL_TEXTURE_TILE,
+      );
+    } else if (Math.abs(normal.getX(i)) > Math.abs(normal.getZ(i))) {
       uv.setXY(i, (pos.getZ(i) + hd) / WALL_TEXTURE_TILE, y / WALL_TEXTURE_TILE);
+    } else {
+      uv.setXY(i, (pos.getX(i) + hw) / WALL_TEXTURE_TILE, y / WALL_TEXTURE_TILE);
     }
   }
   uv.needsUpdate = true;
@@ -558,19 +583,37 @@ function makeRidgeCap(spec: HouseSpec): THREE.BufferGeometry {
 function makeFrontWall(
   spec: HouseSpec,
   zSign: 1 | -1,
+  windowXs: readonly number[] = [],
 ): THREE.BufferGeometry {
   const hz = spec.depth * 0.5;
-  const geometry = makeBox(
-    spec.width - WALL_FACE_OVERLAP * 2,
-    spec.wallHeight,
-    WALL_THICK,
-    new THREE.Vector3(
+  const width = spec.width - WALL_FACE_OVERLAP * 2;
+  let geometry: THREE.BufferGeometry;
+  if (windowXs.length > 0) {
+    const shape = new THREE.Shape();
+    shape.moveTo(-width * 0.5, 0);
+    shape.lineTo(width * 0.5, 0);
+    shape.lineTo(width * 0.5, spec.wallHeight);
+    shape.lineTo(-width * 0.5, spec.wallHeight);
+    shape.closePath();
+    geometry = makeWindowedWallGeometry(shape, windowXs, spec.windows, WALL_THICK);
+    geometry.translate(
       0,
-      spec.wallHeight * 0.5,
-      zSign * (hz - WALL_THICK * 0.5 + WALL_FACE_OVERLAP),
-    ),
-  );
-  applyWorldWallUvs(geometry, "xy", spec);
+      0,
+      zSign * (hz - WALL_THICK * 0.5 + WALL_FACE_OVERLAP) - WALL_THICK * 0.5,
+    );
+  } else {
+    geometry = makeBox(
+      width,
+      spec.wallHeight,
+      WALL_THICK,
+      new THREE.Vector3(
+        0,
+        spec.wallHeight * 0.5,
+        zSign * (hz - WALL_THICK * 0.5 + WALL_FACE_OVERLAP),
+      ),
+    );
+  }
+  applyWorldWallUvs(geometry, spec);
   return geometry;
 }
 
@@ -578,6 +621,7 @@ function makeFrontWall(
 function makeGableFacade(
   spec: HouseSpec,
   xSign: 1 | -1,
+  windowZs: readonly number[] = [],
 ): THREE.BufferGeometry {
   const hw = spec.width * 0.5;
   const hd = spec.depth * 0.5;
@@ -592,11 +636,13 @@ function makeGableFacade(
   shape.lineTo(-hd, wallH);
   shape.closePath();
 
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: WALL_THICK,
-    bevelEnabled: false,
-    steps: 1,
-  });
+  const geometry = makeWindowedWallGeometry(
+    shape,
+    // 绕 Y 旋转后，局部 X 对应世界 -xSign * Z；左右窗洞必须与原窗位对齐。
+    windowZs.map((z) => -xSign * z),
+    spec.windows,
+    WALL_THICK,
+  );
   if (xSign > 0) {
     geometry.rotateY(Math.PI * 0.5);
     geometry.translate(hw - WALL_THICK, 0, 0);
@@ -611,21 +657,18 @@ function makeGableFacade(
       facade.deleteAttribute(name);
     }
   }
-  applyWorldWallUvs(facade, "zy", spec);
+  applyWorldWallUvs(facade, spec);
   facade.computeVertexNormals();
   return facade;
 }
 
 /** 山墙斜边木封檐，压住左右瓦沿 */
 function addGableBargeboards(layers: LayerParts, spec: HouseSpec): void {
-  const hw = spec.width * 0.5;
-  const hd = spec.depth * 0.5;
-  const y0 = spec.wallHeight;
-  const y1 = spec.wallHeight + spec.roofHeight;
-  const rakeLen = Math.hypot(hd, y1 - y0);
-  const pitch = Math.atan2(y1 - y0, hd);
-  const boardW = 0.11;
-  const boardH = 0.16;
+  const { ridgeHalf, slopeHalf, baseY, peakY } = roofExtent(spec);
+  const rakeLen = Math.hypot(slopeHalf, peakY - baseY);
+  const pitch = Math.atan2(peakY - baseY, slopeHalf);
+  const boardW = 0.16;
+  const boardH = 0.22;
 
   for (const xSign of [-1, 1] as const) {
     for (const zSign of [-1, 1] as const) {
@@ -633,15 +676,15 @@ function addGableBargeboards(layers: LayerParts, spec: HouseSpec): void {
       scaleBoxUvs(board, boardW, boardH, rakeLen + 0.08, WOOD_TEXTURE_TILE);
       board.translate(0, -boardH * 0.55, 0);
       board.rotateX(zSign > 0 ? pitch : -pitch);
-      const midZ = zSign * hd * 0.5;
-      const midY = (y0 + y1) * 0.5;
-      board.translate(xSign * (hw + boardW * 0.45), midY, midZ);
+      const midZ = zSign * slopeHalf * 0.5;
+      const midY = (baseY + peakY) * 0.5;
+      board.translate(xSign * (ridgeHalf - boardW * 0.5), midY, midZ);
       layers.woodwork.push(board);
     }
   }
 }
 
-/** 檐口木压条 + 斜向椽头，门前能看到一排木榫 */
+/** 加厚封檐与封闭檐底形成连续阴影，前檐保留斜向椽头。 */
 function addRoofRafters(layers: LayerParts, spec: HouseSpec): void {
   const { ridgeHalf, slopeHalf, baseY, peakY } = roofExtent(spec);
   const pitch = Math.atan2(peakY - baseY, slopeHalf);
@@ -652,11 +695,24 @@ function addRoofRafters(layers: LayerParts, spec: HouseSpec): void {
 
   for (const side of [-1, 1] as const) {
     const slopeRotation = side > 0 ? pitch : -pitch;
-    const fascia = new THREE.BoxGeometry(ridgeHalf * 2 + 0.12, 0.16, 0.08);
-    scaleBoxUvs(fascia, ridgeHalf * 2 + 0.12, 0.16, 0.08, WOOD_TEXTURE_TILE);
-    fascia.rotateX(slopeRotation);
-    fascia.translate(0, baseY - 0.02, side * slopeHalf);
-    layers.woodwork.push(fascia);
+    layers.woodwork.push(makeWoodBox(
+      ridgeHalf * 2,
+      0.24,
+      0.12,
+      new THREE.Vector3(0, baseY - 0.12, side * (slopeHalf - 0.06)),
+    ));
+
+    // 檐底沿屋面坡度接回墙面，避免低机位透见瓦片背面和天空缝隙。
+    const soffitLength = spec.roofOverhang / Math.cos(pitch);
+    const soffit = makeWoodBox(
+      ridgeHalf * 2,
+      0.09,
+      soffitLength,
+      new THREE.Vector3(0, -0.07, -side * soffitLength * 0.5),
+    );
+    soffit.rotateX(slopeRotation);
+    soffit.translate(0, baseY, side * slopeHalf);
+    layers.woodwork.push(soffit);
 
     if (side < 0) continue;
 
@@ -677,7 +733,7 @@ function frontY(width: number, depth: number): number {
   return depth * 0.5;
 }
 
-function addBaseStage(layers: LayerParts, spec: HouseSpec): void {
+function addBaseStage(layers: LayerParts, spec: HouseSpec, hasWindows: boolean): void {
   layers.foundations.push(
     makeBox(
       spec.width + 0.3,
@@ -686,7 +742,7 @@ function addBaseStage(layers: LayerParts, spec: HouseSpec): void {
       new THREE.Vector3(0, -spec.foundationHeight * 0.5, 0),
     ),
   );
-  layers.walls.push(makeFrontWall(spec, 1));
+  layers.walls.push(makeFrontWall(spec, 1, hasWindows ? spec.windows.front : []));
   layers.walls.push(makeFrontWall(spec, -1));
   layers.walls.push(
     makeBox(
@@ -696,8 +752,8 @@ function addBaseStage(layers: LayerParts, spec: HouseSpec): void {
       new THREE.Vector3(0, spec.wallHeight - 0.06, 0),
     ),
   );
-  layers.walls.push(makeGableFacade(spec, 1));
-  layers.walls.push(makeGableFacade(spec, -1));
+  layers.walls.push(makeGableFacade(spec, 1, hasWindows ? spec.windows.right : []));
+  layers.walls.push(makeGableFacade(spec, -1, hasWindows ? spec.windows.left : []));
 }
 
 function addRoofStage(layers: LayerParts, spec: HouseSpec): void {
@@ -926,7 +982,7 @@ function addFrontWindow(layers: LayerParts, spec: HouseSpec, x: number): void {
   const frameCenter = new THREE.Vector3(
     x,
     spec.windows.sillHeight + spec.windows.height * 0.5,
-    z + spec.windows.frameDepth * 0.5 + 0.02,
+    z + WALL_FACE_OVERLAP - WINDOW_RECESS - spec.windows.frameDepth * 0.5,
   );
 
   for (const part of makeWindowFrame(
@@ -938,14 +994,30 @@ function addFrontWindow(layers: LayerParts, spec: HouseSpec, x: number): void {
     layers.woodwork.push(part);
   }
 
+  // 玻璃覆盖洞口并藏入框条背面，避免真实开洞后边缘漏空。
   layers.glass.push(
     makeGlassPane(
-      spec.windows.width * 0.76,
-      spec.windows.height * 0.82,
+      spec.windows.width,
+      spec.windows.height,
       0.04,
-      frameCenter.clone().add(new THREE.Vector3(0, 0, -0.08)),
+      frameCenter.clone().add(new THREE.Vector3(0, 0, -spec.windows.frameDepth * 0.25)),
     ),
   );
+  addWindowInterior(layers, spec, frameCenter, spec.windows.frameDepth);
+}
+
+function addWindowInterior(
+  layers: LayerParts,
+  spec: HouseSpec,
+  center: THREE.Vector3,
+  frameDepth: number,
+  rotationY = 0,
+): void {
+  const { room, curtains } = makeWindowInteriorParts(
+    spec.windows.width, spec.windows.height, frameDepth, center, rotationY,
+  );
+  layers.windowInteriors.push(...room);
+  layers.curtains.push(...curtains);
 }
 
 function addSideWindow(
@@ -958,7 +1030,7 @@ function addSideWindow(
   const wallX = side === "left" ? -spec.width * 0.5 : spec.width * 0.5;
   const frameDepth = Math.max(spec.windows.frameDepth, 0.28);
   const frameCenter = new THREE.Vector3(
-    wallX + outward * (frameDepth * 0.5 + 0.08),
+    wallX - outward * (WINDOW_RECESS + frameDepth * 0.5),
     spec.windows.sillHeight + spec.windows.height * 0.5,
     z,
   );
@@ -974,13 +1046,15 @@ function addSideWindow(
   }
 
   layers.glass.push(
-    makeBox(
+    makeGlassPane(
+      spec.windows.width,
+      spec.windows.height,
       0.04,
-      spec.windows.height * 0.82,
-      spec.windows.width * 0.76,
-      frameCenter.clone().add(new THREE.Vector3(outward * 0.01, 0, 0)),
+      frameCenter.clone().add(new THREE.Vector3(-outward * frameDepth * 0.25, 0, 0)),
+      Math.PI * 0.5,
     ),
   );
+  addWindowInterior(layers, spec, frameCenter, frameDepth, outward * Math.PI * 0.5);
 }
 
 function addWindowsStage(layers: LayerParts, spec: HouseSpec): void {
@@ -991,29 +1065,23 @@ function addWindowsStage(layers: LayerParts, spec: HouseSpec): void {
 
 /** 烟囱 + 门前两级台阶 */
 function addDetailsStage(layers: LayerParts, spec: HouseSpec): void {
-  const chimneyY = spec.wallHeight + spec.chimney.height * 0.5 + 0.35;
-  layers.walls.push(
-    makeBox(
-      spec.chimney.width,
-      spec.chimney.height,
-      spec.chimney.depth,
-      new THREE.Vector3(spec.chimney.x, chimneyY, spec.chimney.z),
-      true,
-    ),
+  const roof = roofExtent(spec);
+  const chimney = makeChimneyParts(
+    spec.chimney,
+    spec.wallHeight + 0.35,
+    roof.peakY + spec.chimney.heightAboveRidge,
   );
-  layers.roofs.push(
-    makeBox(
-      spec.chimney.width + 0.16,
-      0.16,
-      spec.chimney.depth + 0.16,
-      new THREE.Vector3(
-        spec.chimney.x,
-        spec.wallHeight + spec.chimney.height + 0.43,
-        spec.chimney.z,
-      ),
-      true,
-    ),
-  );
+  for (const part of [...chimney.walls, ...chimney.roofs]) {
+    applyWorldWallUvs(part, spec);
+  }
+  layers.walls.push(...chimney.walls);
+  layers.roofs.push(...chimney.roofs);
+  layers.roofMetalwork.push(...chimney.roofMetalwork);
+  layers.roofMetalwork.push(...makeRoofDrainageParts({
+    ...roof,
+    wallHalfWidth: spec.width * 0.5,
+    wallHalfDepth: spec.depth * 0.5,
+  }));
 
   const frontZ = spec.depth * 0.5;
   const stepCenterX = spec.door.offsetX;
@@ -1074,37 +1142,6 @@ function stageIndex(stage: BuildStage): number {
   return BUILD_STAGES.indexOf(stage);
 }
 
-function normalizeForMerge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry[] {
-  const normalized: THREE.BufferGeometry[] = [];
-  for (const part of parts) {
-    let geometry = part;
-    if (geometry.index !== null) {
-      const expanded = geometry.toNonIndexed();
-      geometry.dispose();
-      geometry = expanded;
-    }
-    const position = geometry.getAttribute("position");
-    // mergeGeometries 要求各部分属性一致；缺 UV 时补空 UV
-    if (position && !geometry.getAttribute("uv")) {
-      geometry.setAttribute(
-        "uv",
-        new THREE.BufferAttribute(new Float32Array(position.count * 2), 2),
-      );
-    }
-    normalized.push(geometry);
-  }
-  return normalized;
-}
-
-function mergeLayer(parts: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
-  if (parts.length === 0) return null;
-  const normalized = normalizeForMerge(parts);
-  const merged = mergeGeometries(normalized, false);
-  for (const geometry of normalized) geometry.dispose();
-  merged.computeBoundingSphere();
-  return merged;
-}
-
 /** 按 stage 累计建造并合并为可直接挂到 mesh 的分层几何 */
 export function buildHouseLayers(
   stage: BuildStage,
@@ -1113,7 +1150,8 @@ export function buildHouseLayers(
   const layers = emptyLayers();
   const current = stageIndex(stage);
 
-  addBaseStage(layers, spec);
+  // 窗洞与窗框在同一建造阶段出现，前面的基础 / 屋顶 / 门阶段保留完整墙面。
+  addBaseStage(layers, spec, current >= stageIndex("windows"));
   if (current >= stageIndex("roof")) addRoofStage(layers, spec);
   if (current >= stageIndex("door")) addDoorStage(layers, spec);
   if (current >= stageIndex("windows")) addWindowsStage(layers, spec);
@@ -1125,7 +1163,10 @@ export function buildHouseLayers(
     roofs: mergeLayer(layers.roofs),
     woodwork: mergeLayer(layers.woodwork),
     metalwork: mergeLayer(layers.metalwork),
+    roofMetalwork: mergeLayer(layers.roofMetalwork),
     glass: mergeLayer(layers.glass),
+    windowInteriors: mergeLayer(layers.windowInteriors),
+    curtains: mergeLayer(layers.curtains),
     steps: mergeLayer(layers.steps),
   };
 }

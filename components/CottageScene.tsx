@@ -13,6 +13,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import {
   buildHouseLayers,
+  DEFAULT_HOUSE_SPEC,
   type BuildStage,
   type CityLayers,
 } from "@/lib/geoBuildings";
@@ -25,6 +26,9 @@ import {
   applyWallWeathering,
   applyWoodEnrichment,
 } from "@/lib/materialWeathering";
+const applyCottageWallWeathering: THREE.Material["onBeforeCompile"] = (shader, renderer) => {
+  applyWallWeathering(shader, renderer, DEFAULT_HOUSE_SPEC);
+};
 function disposeLayers(l: CityLayers | null) {
   if (!l) return;
   l.foundations?.dispose();
@@ -32,7 +36,10 @@ function disposeLayers(l: CityLayers | null) {
   l.roofs?.dispose();
   l.woodwork?.dispose();
   l.metalwork?.dispose();
+  l.roofMetalwork?.dispose();
   l.glass?.dispose();
+  l.windowInteriors?.dispose();
+  l.curtains?.dispose();
   l.steps?.dispose();
 }
 
@@ -55,13 +62,13 @@ export function CottageScene({ stage }: CottageSceneProps) {
   const wallMat = (
     <meshStandardMaterial
       {...wallTextures}
-      color="#b8ab97"
+      color="#d9cfba"
       roughness={1}
       metalness={0.01}
-      normalScale={new THREE.Vector2(1.35, 1.35)}
+      normalScale={new THREE.Vector2(0.95, 0.95)}
       envMapIntensity={0.08}
-      onBeforeCompile={applyWallWeathering}
-      customProgramCacheKey={() => "cottage-wall-weathered-v5"}
+      onBeforeCompile={applyCottageWallWeathering}
+      customProgramCacheKey={() => "cottage-wall-weathered-v6"}
       transparent={false}
       opacity={1}
       depthWrite
@@ -70,14 +77,14 @@ export function CottageScene({ stage }: CottageSceneProps) {
   const roofMat = (
     <meshStandardMaterial
       {...roofTextures}
-      color="#d09a6a"
+      color="#dfb18b"
       roughness={0.92}
       metalness={0.02}
-      normalScale={new THREE.Vector2(0.7, 0.7)}
+      normalScale={new THREE.Vector2(0.48, 0.48)}
       envMapIntensity={0.2}
       side={THREE.DoubleSide}
       onBeforeCompile={applyRoofTilingBreaker}
-      customProgramCacheKey={() => "cottage-roof-barrel-v4"}
+      customProgramCacheKey={() => "cottage-roof-barrel-v5"}
     />
   );
   const woodMat = (
@@ -151,9 +158,34 @@ export function CottageScene({ stage }: CottageSceneProps) {
           {metalMat}
         </mesh>
       ) : null}
+      {layers.roofMetalwork ? (
+        <mesh geometry={layers.roofMetalwork} castShadow receiveShadow>
+          <meshStandardMaterial
+            color="#41443f"
+            roughness={0.78}
+            metalness={0.35}
+            envMapIntensity={0.3}
+          />
+        </mesh>
+      ) : null}
       {layers.glass ? (
-        <mesh geometry={layers.glass} castShadow receiveShadow>
+        <mesh geometry={layers.glass} receiveShadow>
           {glassMat}
+        </mesh>
+      ) : null}
+      {layers.windowInteriors ? (
+        <mesh geometry={layers.windowInteriors} receiveShadow>
+          <meshStandardMaterial vertexColors roughness={1} envMapIntensity={0.12} />
+        </mesh>
+      ) : null}
+      {layers.curtains ? (
+        <mesh geometry={layers.curtains} receiveShadow>
+          <meshStandardMaterial
+            vertexColors
+            roughness={1}
+            side={THREE.DoubleSide}
+            envMapIntensity={0.2}
+          />
         </mesh>
       ) : null}
       {layers.steps ? (

@@ -3,10 +3,12 @@
  * 为墙体添加污渍/色差，为屋顶打破贴图整齐重复的"贴片感"，
  * 并为木作门窗略提木纹对比与局部暗化。
  *
- * 均基于已有 UV（vMapUv 等于世界单位缩放后的 UV，见 geoBuildings.scaleBoxUvs），
- * 不需要额外贴图或 vWorldPosition。
+ * 噪声基于已有 UV；墙体另用局部几何位置定位墙脚、窗下和檐下污渍。
+ * 不需要额外贴图。
  */
+import { Vector4 } from "three";
 import type { WebGLProgramParametersWithUniforms, WebGLRenderer } from "three";
+import type { HouseSpec } from "@/lib/geoBuildings";
 
 const NOISE_GLSL = `
 float wxHash(vec2 p) {
@@ -35,37 +37,80 @@ float wxFbm(vec2 p) {
 `;
 
 /**
- * 墙体风化：底部潮湿污渍 + 雨痕 + 大/中/细尺度斑驳色差，
- * 并显著提高污渍处粗糙度，避免灰泥墙均匀过白、发塑料感。
+ * 墙体风化：主体保留轻微灰泥色差，明显污渍只落在墙脚、真实窗位下方和檐下。
+ * 位置遮罩使用模型坐标，避免窗洞侧壁的 UV 投影改变污渍高度。
  */
 export function applyWallWeathering(
   shader: WebGLProgramParametersWithUniforms,
   _renderer: WebGLRenderer,
+  spec: HouseSpec,
 ): void {
+  const windowFaces: [number, readonly number[]][] = [
+    [0, spec.windows.front],
+    [-1, spec.windows.left],
+    [1, spec.windows.right],
+  ];
+  const windowBounds = windowFaces.flatMap(([face, centers]) =>
+    centers.map((center) => new Vector4(
+      center - spec.windows.width * 0.5,
+      center + spec.windows.width * 0.5,
+      spec.windows.sillHeight,
+      face,
+    )),
+  );
+  shader.uniforms.wxHouseShape = {
+    value: new Vector4(spec.width * 0.5, spec.wallHeight, spec.depth * 0.5, spec.roofHeight),
+  };
+  // 无窗配置仍保留合法的 uniform 数组长度；下面的静态循环次数为 0。
+  shader.uniforms.wxWindowBounds = { value: windowBounds.length ? windowBounds : [new Vector4()] };
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+      varying vec3 vWxWallPosition;
+      varying vec3 vWxWallNormal;
+      `,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+      vWxWallPosition = transformed;
+      vWxWallNormal = normal;
+      `,
+    );
   shader.fragmentShader = shader.fragmentShader
     .replace(
       "#include <common>",
       `#include <common>
       ${NOISE_GLSL}
+      varying vec3 vWxWallPosition;
+      varying vec3 vWxWallNormal;
+      uniform vec4 wxHouseShape;
+      uniform vec4 wxWindowBounds[${Math.max(1, windowBounds.length)}];
+      float wxWallFacade(float face) {
+        if (face == 0.0) {
+          return step(0.9, vWxWallNormal.z)
+            * smoothstep(wxHouseShape.z - 0.04, wxHouseShape.z, vWxWallPosition.z);
+        }
+        return step(0.9, vWxWallNormal.x * face)
+          * smoothstep(wxHouseShape.x - 0.04, wxHouseShape.x, vWxWallPosition.x * face);
+      }
+      float wxWallEave() {
+        float frontBack = step(0.9, abs(vWxWallNormal.z))
+          * smoothstep(wxHouseShape.z - 0.04, wxHouseShape.z, abs(vWxWallPosition.z));
+        float gable = max(wxWallFacade(-1.0), wxWallFacade(1.0));
+        float gableTop = wxHouseShape.y + wxHouseShape.w
+          * (1.0 - abs(vWxWallPosition.z) / wxHouseShape.z);
+        float wallTop = mix(wxHouseShape.y, gableTop, gable);
+        float belowEave = wallTop - vWxWallPosition.y;
+        return max(frontBack, gable) * smoothstep(0.0, 0.08, belowEave)
+          * (1.0 - smoothstep(0.2, 0.65, belowEave));
+      }
       float wxWallWeather(vec2 uv) {
-        float damp = smoothstep(0.92, -0.22, uv.y);
-        float midDamp = smoothstep(1.35, 0.15, uv.y);
-        float grime = damp * (0.42 + 0.58 * wxFbm(uv * vec2(0.42, 0.78) + 3.0));
-        float grimeMid = midDamp * smoothstep(0.4, 0.88, wxFbm(uv * 0.7 + 29.0)) * 0.28;
-        float blotch = smoothstep(0.28, 0.88, wxFbm(uv * 0.95 + 17.0)) * 0.55;
-        float blotch2 = smoothstep(0.48, 0.9, wxNoise(uv * 2.1 + 53.0)) * 0.28;
-        float blotch3 = smoothstep(0.62, 0.95, wxNoise(uv * 5.4 + 91.0)) * 0.14;
-        float streak = pow(wxNoise(vec2(uv.x * 3.6 + 9.0, uv.y * 0.22)), 1.85)
-          * smoothstep(1.2, 0.02, uv.y) * 0.42;
-        float streak2 = pow(wxNoise(vec2(uv.x * 6.8 + 21.0, uv.y * 0.48)), 2.6)
-          * smoothstep(1.0, 0.12, uv.y) * 0.22;
-        float streak3 = pow(wxNoise(vec2(uv.x * 11.0 + 37.0, uv.y * 0.7)), 3.2)
-          * smoothstep(0.75, 0.18, uv.y) * 0.12;
-        return clamp(
-          grime + grimeMid + blotch + blotch2 + blotch3 + streak + streak2 + streak3,
-          0.0,
-          0.92
-        );
+        float damp = 1.0 - smoothstep(0.12, 0.9, vWxWallPosition.y);
+        float grime = damp * (0.12 + 0.18 * wxFbm(uv * vec2(0.7, 1.1) + 3.0));
+        float eaveDust = wxWallEave() * (0.05 + 0.07 * wxNoise(uv * vec2(3.6, 0.8) + 9.0));
+        return clamp(grime + eaveDust, 0.0, 0.34);
       }
       float wxWallMottle(vec2 uv) {
         return wxFbm(uv * 1.05 + 5.0) * 0.46
@@ -77,16 +122,26 @@ export function applyWallWeathering(
           + wxNoise(uv * 48.0 + 83.0) * 0.35;
       }
       float wxWallAlgae(vec2 uv) {
-        float damp = smoothstep(0.72, -0.12, uv.y);
+        float damp = 1.0 - smoothstep(0.05, 0.42, vWxWallPosition.y);
         // 不可用标识符 patch：WebGL2/GLSL3 保留字，会导致墙材质 shader 编译失败而不绘制
         float algaePatch = smoothstep(0.38, 0.82, wxFbm(uv * vec2(0.75, 1.25) + 63.0));
         float edge = smoothstep(0.55, 0.9, wxNoise(uv * 3.2 + 101.0));
-        return damp * (algaePatch * 0.34 + edge * 0.12);
+        return damp * (algaePatch * 0.1 + edge * 0.035);
       }
       float wxWallLeak(vec2 uv) {
-        // 窗下/墙中部水渍暗斑
-        float band = smoothstep(0.35, 0.7, uv.y) * smoothstep(1.15, 0.55, uv.y);
-        return band * pow(wxNoise(vec2(uv.x * 5.5 + 44.0, uv.y * 0.35)), 2.4) * 0.26;
+        float leak = 0.0;
+        for (int i = 0; i < ${windowBounds.length}; i++) {
+          vec4 bounds = wxWindowBounds[i];
+          float facade = wxWallFacade(bounds.w);
+          float across = bounds.w == 0.0 ? vWxWallPosition.x : vWxWallPosition.z;
+          float underSill = bounds.z - vWxWallPosition.y;
+          float windowWidth = smoothstep(bounds.x - 0.08, bounds.x + 0.14, across)
+            * (1.0 - smoothstep(bounds.y - 0.14, bounds.y + 0.08, across));
+          float trail = smoothstep(0.0, 0.06, underSill)
+            * (1.0 - smoothstep(0.2, 0.95, underSill));
+          leak = max(leak, facade * windowWidth * trail);
+        }
+        return leak * (0.05 + 0.11 * pow(wxNoise(uv * vec2(12.0, 1.1) + 44.0), 2.0));
       }
       `,
     )
@@ -102,17 +157,17 @@ export function applyWallWeathering(
         float wxMicro = wxWallMicro(vMapUv);
         float wxAlgae = wxWallAlgae(vMapUv);
         float wxLeak = wxWallLeak(vMapUv);
-        // 大尺度冷暖色差，打破均匀灰泥白
-        diffuseColor.rgb *= mix(vec3(0.74, 0.72, 0.68), vec3(1.14, 1.07, 0.96), wxMottle);
-        diffuseColor.rgb *= mix(0.9, 1.08, wxMicro);
+        // 主墙面保留轻微暖色差与颗粒，不再叠加大面积深色斑块。
+        diffuseColor.rgb *= mix(vec3(0.95, 0.93, 0.9), vec3(1.04, 1.02, 0.99), wxMottle);
+        diffuseColor.rgb *= mix(0.98, 1.02, wxMicro);
         // 污渍偏褐灰，近地面更脏
-        vec3 wxDirt = diffuseColor.rgb * vec3(0.38, 0.34, 0.28);
+        vec3 wxDirt = diffuseColor.rgb * vec3(0.68, 0.62, 0.52);
         diffuseColor.rgb = mix(diffuseColor.rgb, wxDirt, wxWeather);
         // 水渍更深褐
-        vec3 wxLeakCol = diffuseColor.rgb * vec3(0.42, 0.4, 0.36);
+        vec3 wxLeakCol = diffuseColor.rgb * vec3(0.64, 0.6, 0.52);
         diffuseColor.rgb = mix(diffuseColor.rgb, wxLeakCol, wxLeak);
         // 墙脚青苔/藻类色偏
-        vec3 wxMoss = diffuseColor.rgb * vec3(0.62, 0.78, 0.58);
+        vec3 wxMoss = diffuseColor.rgb * vec3(0.72, 0.8, 0.64);
         diffuseColor.rgb = mix(diffuseColor.rgb, wxMoss, wxAlgae);
       }
       `,
@@ -132,11 +187,11 @@ export function applyWallWeathering(
         float wxAlgaeR = wxWallAlgae(vRoughnessMapUv);
         roughnessFactor = clamp(
           roughnessFactor
-            + wxWeatherR * 0.48
-            + wxLeakR * 0.2
-            + wxAlgaeR * 0.14
-            + wxMicroR * 0.14
-            + (1.0 - wxMottleR) * 0.09,
+            + wxWeatherR * 0.18
+            + wxLeakR * 0.08
+            + wxAlgaeR * 0.06
+            + wxMicroR * 0.04
+            + (1.0 - wxMottleR) * 0.03,
           0.0,
           1.0
         );
@@ -146,7 +201,7 @@ export function applyWallWeathering(
 }
 
 /**
- * 陶土筒瓦轻度风化：微小 UV 偏移与冷暖差，保留瓦垄朝向。
+ * 陶土筒瓦轻度风化：减弱贴图的重复明暗，保留细微陶土色差与几何瓦垄。
  */
 export function applyRoofTilingBreaker(
   shader: WebGLProgramParametersWithUniforms,
@@ -175,12 +230,14 @@ export function applyRoofTilingBreaker(
       "#include <map_fragment>",
       `#ifdef USE_MAP
         vec4 sampledDiffuseColor = texture2D( map, wxRoofJitter(vMapUv) );
+        // 向原贴图的线性 RGB 均值收敛，减轻深色条纹，同时保留几何产生的阴影。
+        sampledDiffuseColor.rgb = mix(vec3(0.126, 0.042, 0.018), sampledDiffuseColor.rgb, 0.82);
         float wxTint = wxRoofTint(vMapUv);
         float wxShade = wxRoofShade(vMapUv);
         float wxTile = wxRoofTileVar(vMapUv);
-        sampledDiffuseColor.rgb *= mix(0.9, 1.08, wxTint);
-        sampledDiffuseColor.rgb *= mix(0.92, 1.06, wxShade);
-        sampledDiffuseColor.rgb *= mix(vec3(0.9, 0.86, 0.82), vec3(1.08, 1.02, 0.96), wxTile);
+        sampledDiffuseColor.rgb *= mix(0.96, 1.04, wxTint);
+        sampledDiffuseColor.rgb *= mix(0.97, 1.03, wxShade);
+        sampledDiffuseColor.rgb *= mix(vec3(0.98, 0.95, 0.92), vec3(1.04, 1.02, 0.99), wxTile);
         diffuseColor *= sampledDiffuseColor;
       #endif
       `,
