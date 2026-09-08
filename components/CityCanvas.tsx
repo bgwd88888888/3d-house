@@ -314,7 +314,10 @@ export function CityCanvas({
       </Suspense>
 
       <Suspense fallback={null}>
-        <GrassGround shadowRadius={GARDEN_SHADOW[scene].grass} />
+        <GrassGround
+          shadowRadius={GARDEN_SHADOW[scene].grass}
+          cottageWear={scene === "cottage"}
+        />
       </Suspense>
 
       {scene === "cottage" ? <CottageDecor /> : <CourtyardDecor />}

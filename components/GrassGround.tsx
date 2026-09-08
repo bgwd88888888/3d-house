@@ -6,9 +6,15 @@
  * 733m 大平面不接影（低精度阴影会打出黑块）；院内另铺一小块只接影的平面。
  */
 import { useTexture } from "@react-three/drei";
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGrassTextures } from "@/hooks/useGrassTextures";
+import { COTTAGE_TREES } from "@/lib/cottageTreeLayout";
+import {
+  COTTAGE_PARKING_WEAR,
+  COTTAGE_PICKUP_POSITION,
+} from "@/lib/cottageVehicleLayout";
+import { DEFAULT_HOUSE_SPEC } from "@/lib/geoBuildings";
 
 const GRASS_SIZE = 733;
 /** 更密的近处草纹，增强草质感与斑块边缘可读性 */
@@ -37,6 +43,10 @@ const POND_RX = 2.4;
 const POND_RZ = 2.1;
 const POND_WATER_RX = 1.7;
 const POND_WATER_RZ = 1.4;
+const HOUSE_HALF_X = DEFAULT_HOUSE_SPEC.width * 0.5;
+const HOUSE_HALF_Z = DEFAULT_HOUSE_SPEC.depth * 0.5;
+const PARK_X = COTTAGE_PICKUP_POSITION[0];
+const PARK_Z = COTTAGE_PICKUP_POSITION[2];
 
 const DIRT_TEXTURE_URLS = {
   map: "/textures/ground-048/Ground048_1K-JPG_Color.jpg",
@@ -47,9 +57,38 @@ const DIRT_TEXTURE_URLS = {
 type GrassGroundProps = {
   /** 院内接影半径（米）。大草坪本身不 receiveShadow。 */
   shadowRadius?: number;
+  /** 仅西式小院启用树根、停车区与墙脚活动磨损，避免合院被带上。 */
+  cottageWear?: boolean;
 };
 
-export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
+function cottageTreeDipGlsl(): string {
+  return COTTAGE_TREES.map((tree, index) => {
+    const inner = (tree.wearInner * 0.55).toFixed(2);
+    const outer = tree.wearOuter.toFixed(2);
+    const amount = (0.028 + index * 0.01).toFixed(3);
+    return /* glsl */ `
+              float treeDip${index} = 1.0 - smoothstep(${inner}, ${outer},
+                length(wp0 - vec2(${tree.position[0].toFixed(2)}, ${tree.position[2].toFixed(2)})));
+              h -= treeDip${index} * ${amount} * (0.55 + 0.45 * gvNoise(wp0 * 0.7));`;
+  }).join("");
+}
+
+function cottageTreeWearGlsl(): string {
+  return COTTAGE_TREES.map((tree, index) => {
+    const noise = index === 0 ? "dirtMeso" : "dirtFine";
+    return /* glsl */ `
+              float treeDist${index} = length(wp - vec2(${tree.position[0].toFixed(2)}, ${tree.position[2].toFixed(2)}));
+              grActivityWear = max(grActivityWear,
+                grRadialWear(treeDist${index}, ${tree.wearInner.toFixed(2)}, ${tree.wearOuter.toFixed(2)}, ${noise}));`;
+  }).join("");
+}
+
+export function GrassGround({
+  shadowRadius = 0,
+  cottageWear = false,
+}: GrassGroundProps) {
+  const cottageWearRef = useRef(cottageWear);
+  cottageWearRef.current = cottageWear;
   const textures = useGrassTextures();
   const dirtTextures = useTexture(DIRT_TEXTURE_URLS);
   const fineRepeat = GRASS_SIZE / GRASS_TILE_METERS;
@@ -94,12 +133,15 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
       shader.uniforms.uDirtMap = { value: dirtTextures.map };
       shader.uniforms.uDirtRoughnessMap = { value: dirtTextures.roughnessMap };
       shader.uniforms.uMacroScale = { value: macroScale };
+      shader.uniforms.uCottageWear = { value: cottageWearRef.current ? 1 : 0 };
+      mat.userData.grassUniforms = shader.uniforms;
 
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
           /* glsl */ `#include <common>
           varying vec3 vGroundWorld;
+          uniform float uCottageWear;
           float gvHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float gvNoise(vec2 p){
             vec2 i = floor(p); vec2 f = fract(p);
@@ -148,6 +190,13 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
               );
               float pathDip = (1.0 - smoothstep(0.45, 1.55, pathD)) * houseClear;
               h -= pathDip * 0.035 * (0.6 + 0.4 * gvNoise(wp0 * 0.9));
+              if (uCottageWear > 0.5) {
+                ${cottageTreeDipGlsl()}
+                vec2 parkDipP = (wp0 - vec2(${PARK_X.toFixed(2)}, ${PARK_Z.toFixed(2)}))
+                  / vec2(${COTTAGE_PARKING_WEAR.halfWidth.toFixed(2)}, ${COTTAGE_PARKING_WEAR.halfLength.toFixed(2)});
+                float parkDip = 1.0 - smoothstep(0.45, 1.22, length(parkDipP));
+                h -= parkDip * 0.026 * (0.6 + 0.4 * gvNoise(wp0 * 0.85));
+              }
             }
             transformed.z += h;
           }
@@ -162,7 +211,9 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
           uniform sampler2D uDirtMap;
           uniform sampler2D uDirtRoughnessMap;
           uniform float uMacroScale;
+          uniform float uCottageWear;
           float grDirtMask = 0.0;
+          float grActivityWear = 0.0;
           float grPatchMid = 0.5;
           vec2 grBumpGrad = vec2(0.0);
           float grHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -201,6 +252,14 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             float creep = smoothstep(0.35, 0.78, grFbm(wp * freq + 6.1));
             float edge = smoothstep(0.15, 0.75, wear) * (1.0 - smoothstep(0.55, 1.0, wear));
             return wear * (1.0 - creep * edge * 0.85);
+          }
+          // 物件磨损：复用已有 dirt 噪声撕边/回草，不增加 fbm 调用。
+          float grRadialWear(float dist, float inner, float outer, float n){
+            float core = 1.0 - smoothstep(inner * 0.22, inner, dist);
+            float ring = (1.0 - smoothstep(inner * 0.55, outer, dist)) * (1.0 - core);
+            float mask = clamp(core * 0.95 + ring * mix(0.16, 0.74, n) + (n - 0.5) * 0.38, 0.0, 1.0);
+            float edge = smoothstep(0.12, 0.7, mask) * (1.0 - smoothstep(0.55, 1.0, mask));
+            return mask * (1.0 - smoothstep(0.32, 0.8, n) * edge * 0.72);
           }
           vec3 grFarGrass(vec2 wp, vec3 fineSample, vec3 macroSample, float camDist){
             vec3 grassCol = mix(fineSample, macroSample, mix(0.32, 0.72, smoothstep(40.0, 180.0, camDist)));
@@ -246,6 +305,8 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             // —— 近院落：有机斑块磨损/色差（前院最强，勿画成矩形泥围裙）——
             float nearYard = 1.0 - smoothstep(6.0, 34.0, yardRad);
             float nearFocus = max(nearYard, nearCam * 0.9);
+            // 小院活动磨损接手后，压低近院随机大斑，避免再铺一层匀质斑纹。
+            grDirtMask *= mix(1.0, mix(1.0, 0.4, nearYard), uCottageWear);
             // 中远景草甸权重：院外别成一片空绿
             float midField = smoothstep(16.0, 38.0, yardRad)
               * (1.0 - smoothstep(85.0, 210.0, yardRad));
@@ -273,7 +334,9 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
               * smoothstep(0.32, 0.64, grFbm(wp * 0.9 + 7.7))
               * smoothstep(0.26, 0.56, grFbm(wp * 2.1 - 2.2));
             foundationWear = grRagged(foundationWear, wp, 2.5, 0.85);
+            foundationWear *= mix(1.0, 0.28, uCottageWear);
             yardWear = max(yardWear, foundationWear * 0.82);
+            yardWear *= mix(1.0, mix(1.0, 0.52, nearYard), uCottageWear);
             yardWear = grGrassCreep(yardWear, wp, 1.3);
             grDirtMask = max(grDirtMask, yardWear * mix(0.74, 0.92, nearCam));
 
@@ -301,6 +364,34 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             pathWear = grGrassCreep(pathWear, wp, 1.6);
             pathWear *= mix(1.0, 0.32, seamGrass * (1.0 - smoothstep(0.32, 0.78, pathD)));
             grDirtMask = max(grDirtMask, pathWear * mix(0.72, 0.9, nearCam));
+
+            if (uCottageWear > 0.5) {
+              ${cottageTreeWearGlsl()}
+              vec2 parkDelta = wp - vec2(${PARK_X.toFixed(2)}, ${PARK_Z.toFixed(2)});
+              float parkR = length(parkDelta / vec2(${COTTAGE_PARKING_WEAR.halfWidth.toFixed(2)}, ${COTTAGE_PARKING_WEAR.halfLength.toFixed(2)}));
+              float parkPad = grRadialWear(parkR, 0.58, 1.26, dirtMeso);
+              float tireAlong = 1.0 - smoothstep(${(COTTAGE_PARKING_WEAR.halfLength * 0.12).toFixed(2)}, ${(COTTAGE_PARKING_WEAR.halfLength * 1.08).toFixed(2)}, abs(parkDelta.y));
+              float tireDist = min(
+                abs(parkDelta.x - ${COTTAGE_PARKING_WEAR.tireOffset.toFixed(2)}),
+                abs(parkDelta.x + ${COTTAGE_PARKING_WEAR.tireOffset.toFixed(2)})
+              );
+              float tireWear = (1.0 - smoothstep(0.06, 0.34, tireDist)) * tireAlong
+                * mix(0.42, 1.0, dirtFine);
+              tireWear = clamp(tireWear + (dirtFine - 0.5) * 0.32, 0.0, 1.0);
+              grActivityWear = max(grActivityWear, max(parkPad * 0.9, tireWear * 0.92));
+              vec2 wallD = abs(wp) - vec2(${HOUSE_HALF_X.toFixed(2)}, ${HOUSE_HALF_Z.toFixed(2)});
+              float wallEdge = length(max(wallD, 0.0)) + min(max(wallD.x, wallD.y), 0.0);
+              float wallBand = (1.0 - smoothstep(0.05, 1.12, wallEdge)) * smoothstep(-0.04, 0.06, wallEdge);
+              float wallKeep = mix(0.22, 1.0, smoothstep(0.48, 1.2, pathD));
+              float wallFoot = wallBand * mix(0.4, 1.0, dirtMeso) * mix(0.55, 1.0, dirtFine) * wallKeep;
+              wallFoot = clamp(wallFoot + (dirtMicro - 0.5) * 0.48, 0.0, 1.0);
+              float wallOuter = smoothstep(0.28, 1.0, wallEdge);
+              wallFoot *= mix(1.0, 0.28, smoothstep(0.34, 0.78, dirtFine) * wallOuter);
+              grActivityWear = max(grActivityWear, wallFoot * 0.92);
+              grActivityWear *= mix(0.8, 0.97, nearCam);
+              yardWear = max(yardWear, grActivityWear * 0.88);
+              grDirtMask = max(grDirtMask, grActivityWear);
+            }
 
             // —— 池岸：湿内环 → 干泥肩 → 外缘碎草/草色软接 ——
             vec2 pondEll = (wp - vec2(${POND_X.toFixed(2)}, ${POND_Z.toFixed(2)}))
@@ -337,6 +428,7 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             vec3 dirtCol = texture2D(uDirtMap, vMapUv * 0.5).rgb * vec3(0.9, 0.84, 0.75);
             dirtCol *= mix(vec3(1.0), vec3(1.06, 0.98, 0.9), nearFocus * 0.6);
             dirtCol *= mix(vec3(1.0), vec3(0.7, 0.78, 0.68), pondWet);
+            dirtCol *= mix(vec3(1.0), vec3(0.93, 0.87, 0.76), grActivityWear * 0.5);
             // 路径外晕/池岸外圈混回草色，软过渡
             float edgeSoft = max(max(pathHalo, pathOuter), max(pondFringe, pondCreep)) * 0.42;
             blended = mix(grassCol, dirtCol, grDirtMask * mix(0.72, 0.88, nearCam));
@@ -384,12 +476,13 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
             tone = mix(tone, min(1.0, tone + 0.24), pondWet);
             tone = mix(tone, tone * 0.74, pathShoulder * 0.55 + pathHalo * 0.25);
             tone = mix(tone, tone * 0.82, fieldDry * 0.7);
+            tone = mix(tone, tone * 0.72, grActivityWear * 0.55);
             blended *= mix(dry, lush, tone);
 
             // 门前/廊道旁细碎晒斑
             float sunPatch = grFbm(wp * 1.05 + 27.0);
             blended *= mix(vec3(1.0), vec3(1.14, 1.03, 0.84),
-              (pathWear * 0.48 + yardWear * 0.38 + foundationWear * 0.42) * sunPatch);
+              (pathWear * 0.48 + yardWear * 0.38 + foundationWear * 0.42 + grActivityWear * 0.5) * sunPatch);
 
             // 近处用解析梯度伪造法线扰动
             {
@@ -400,7 +493,7 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
               float hU = grFbm2((wp + vec2(0.0, eps)) * 1.05);
               grBumpGrad = vec2(hR - hL, hU - hD) / (2.0 * eps);
               // 磨损/池岸边缘额外凹凸，碎边更可读
-              float edgeBump = max(pathWear, max(pondBank, yardWear * 0.75));
+              float edgeBump = max(pathWear, max(pondBank, max(yardWear * 0.75, grActivityWear)));
               grBumpGrad += vec2(
                 grFbm2(wp * 1.85) - 0.5,
                 grFbm2(wp * 1.85 + 4.0) - 0.5
@@ -469,7 +562,7 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
         );
     };
 
-    mat.customProgramCacheKey = () => `grass-ground-v20-${macroScale.toFixed(3)}`;
+    mat.customProgramCacheKey = () => `grass-ground-v21-${macroScale.toFixed(3)}`;
 
     return mat;
   }, [
@@ -487,6 +580,17 @@ export function GrassGround({ shadowRadius = 0 }: GrassGroundProps) {
     material.needsUpdate = true;
     /* eslint-enable react-hooks/immutability */
   }, [material, textures]);
+
+  useLayoutEffect(() => {
+    const uniforms = material.userData.grassUniforms as
+      | { uCottageWear?: { value: number } }
+      | undefined;
+    if (uniforms?.uCottageWear) {
+      /* eslint-disable react-hooks/immutability -- 场景切换只改磨损开关，不重建草地材质 */
+      uniforms.uCottageWear.value = cottageWear ? 1 : 0;
+      /* eslint-enable react-hooks/immutability */
+    }
+  }, [cottageWear, material]);
 
   useLayoutEffect(() => {
     return () => material.dispose();

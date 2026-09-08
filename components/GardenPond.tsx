@@ -8,7 +8,7 @@ import { useTexture } from "@react-three/drei";
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useGardenPondAssets } from "@/hooks/useGardenPondAssets";
-import { GARDEN_POND, getPondBankPoint, getPondWaterHeight, POND_WATER_POSITION, POND_WATER_TILT } from "@/lib/gardenPondLayout";
+import { GARDEN_POND, GARDEN_POND_WATER, getPondBankPoint, getPondWaterHeight, POND_WATER_POSITION, POND_WATER_TILT } from "@/lib/gardenPondLayout";
 import { GardenPondBank } from "./GardenPondBank";
 import { PondWaterSurface } from "./PondWaterSurface";
 
@@ -429,13 +429,17 @@ export function GardenPond() {
         rz={GARDEN_POND.waterRz}
         position={POND_WATER_POSITION}
         tilt={POND_WATER_TILT}
-        color="#5f8f7e"
-        roughness={0.38}
-        metalness={0.08}
-        normalRepeat={3.6}
-        normalScale={0.38}
-        flowSpeed={[0.008, 0.005]}
-        opacity={0.9}
+        color={GARDEN_POND_WATER.color}
+        shallowColor={GARDEN_POND_WATER.shallowColor}
+        deepColor={GARDEN_POND_WATER.deepColor}
+        roughness={GARDEN_POND_WATER.roughness}
+        metalness={GARDEN_POND_WATER.metalness}
+        normalRepeat={GARDEN_POND_WATER.normalRepeat}
+        normalScale={GARDEN_POND_WATER.normalScale}
+        flowSpeed={GARDEN_POND_WATER.flowSpeed}
+        opacity={GARDEN_POND_WATER.opacity}
+        shallowOpacity={GARDEN_POND_WATER.shallowOpacity}
+        deepOpacity={GARDEN_POND_WATER.deepOpacity}
       />
 
       {placements.bankRocks.map((item, index) => (

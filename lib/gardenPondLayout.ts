@@ -10,6 +10,21 @@ export const GARDEN_POND = {
 export const POND_WATER_POSITION: [number, number, number] = [0.05, -0.008, -0.05];
 export const POND_WATER_TILT = 0.02;
 
+/** 西式小院水面：浅岸透出已有水底，中央压暗。合院不读这份配置。 */
+export const GARDEN_POND_WATER = {
+  color: "#5f8f7e",
+  shallowColor: "#7eae9c",
+  deepColor: "#1c3c3a",
+  roughness: 0.38,
+  metalness: 0.08,
+  normalRepeat: 3.6,
+  normalScale: 0.38,
+  flowSpeed: [0.008, 0.005] as const,
+  opacity: 0.92,
+  shallowOpacity: 0.82,
+  deepOpacity: 1,
+} as const;
+
 /** 平面绕 X / Y 旋转后，水面高度沿 X 方向变化；岸石沿同一水线落位。 */
 export function getPondWaterHeight(x: number): number {
   return POND_WATER_POSITION[1] - Math.tan(POND_WATER_TILT) * (x - POND_WATER_POSITION[0]);

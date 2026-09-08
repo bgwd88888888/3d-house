@@ -12,6 +12,7 @@ import {
   buildCottageYardObstacles,
   COTTAGE_YARD_BOUNDS,
 } from "@/lib/cottageYard";
+import { COTTAGE_TREES } from "@/lib/cottageTreeLayout";
 import { COTTAGE_PICKUP_POSITION } from "@/lib/cottageVehicleLayout";
 import type { SceneKind } from "@/lib/sceneKinds";
 
@@ -81,8 +82,12 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
     z: 10.4,
     radius: 3.0,
   },
-  { kind: "circle", x: 14.1, z: 9.3, radius: 2.5 },
-  { kind: "circle", x: -9.05, z: 3.2, radius: 2.3 },
+  ...COTTAGE_TREES.map((tree) => ({
+    kind: "circle" as const,
+    x: tree.position[0],
+    z: tree.position[2],
+    radius: tree.obstacleRadius,
+  })),
   ...buildCottageYardObstacles(),
 ];
 
