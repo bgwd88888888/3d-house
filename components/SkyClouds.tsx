@@ -24,6 +24,8 @@ class SoftCloudMaterial extends MeshBasicMaterial {
 
 type SkyCloudsProps = {
   preset: WeatherPreset;
+  /** 调整远云中心高度，保留云团自身的大小和形状。 */
+  heightScale?: number;
 };
 
 type CloudTier = "hero" | "main" | "secondary" | "thin" | "band";
@@ -199,7 +201,7 @@ function tintCloudColor(base: string, tint: number, tier: CloudTier): string {
   return `#${c.getHexString()}`;
 }
 
-export function SkyClouds({ preset }: SkyCloudsProps) {
+export function SkyClouds({ preset, heightScale = 1 }: SkyCloudsProps) {
   const orbitRef = useRef<Group>(null);
 
   useFrame((_, delta) => {
@@ -222,7 +224,11 @@ export function SkyClouds({ preset }: SkyCloudsProps) {
             <Cloud
               key={cloud.seed}
               seed={cloud.seed}
-              position={[...cloud.position]}
+              position={[
+                cloud.position[0],
+                cloud.position[1] * heightScale,
+                cloud.position[2],
+              ]}
               scale={cloud.scale}
               volume={cloud.volume}
               segments={cloud.segments}

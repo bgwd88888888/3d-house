@@ -116,7 +116,7 @@ function WeatherAtmosphere({
       <PrairieSky weather={weather} />
 
       <Suspense fallback={null}>
-        <SkyClouds preset={preset} />
+        <SkyClouds preset={preset} heightScale={scene === "cottage" ? 0.55 : 1} />
       </Suspense>
 
       <hemisphereLight
