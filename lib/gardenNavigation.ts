@@ -12,6 +12,7 @@ import {
   buildCottageYardObstacles,
   COTTAGE_YARD_BOUNDS,
 } from "@/lib/cottageYard";
+import { COTTAGE_PICKUP_POSITION } from "@/lib/cottageVehicleLayout";
 import type { SceneKind } from "@/lib/sceneKinds";
 
 export type Vec2 = { x: number; z: number };
@@ -69,10 +70,10 @@ const COTTAGE_OBSTACLES: readonly GardenObstacle[] = [
   },
   {
     kind: "box",
-    minX: 10.3,
-    maxX: 13.7,
-    minZ: 1.1,
-    maxZ: 7.7,
+    minX: COTTAGE_PICKUP_POSITION[0] - 1.7,
+    maxX: COTTAGE_PICKUP_POSITION[0] + 1.7,
+    minZ: COTTAGE_PICKUP_POSITION[2] - 3.3,
+    maxZ: COTTAGE_PICKUP_POSITION[2] + 3.3,
   },
   {
     kind: "circle",

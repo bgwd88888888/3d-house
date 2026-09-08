@@ -172,9 +172,9 @@ function SceneNavSync({ scene }: { scene: SceneKind }) {
  *   x 靠门廊；y 越高越仰视（画面整体越往下）；z 落在房身
  *   机位较远时 y 要多调一点才看得出仰角变化
  */
-// 距离收近约 6%，降低注视点以减少天空留白；眼位高于 target，避免轨道限位改写首屏角度。
-const COTTAGE_CAM_EYE = new THREE.Vector3(26.98, 6, 31.728);
-const COTTAGE_CAM_TARGET = new THREE.Vector3(1.6, 3.6, 2.4);
+// 抬高眼位、略向正面偏转并降低注视点，减少天空留白与右树遮挡；眼位符合轨道旋转限位。
+const COTTAGE_CAM_EYE = new THREE.Vector3(25, 8, 32.7);
+const COTTAGE_CAM_TARGET = new THREE.Vector3(1.6, 1.7, 2.4);
 
 function CottageCameraRig({ active }: { active: boolean }) {
   const { camera, controls } = useThree();

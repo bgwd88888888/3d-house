@@ -37,7 +37,8 @@ export function CottageGardenTrees() {
         modelUrl={PHOTOGRAM_TREE_MODELS.islandTwo}
         // 下沉扫描模型的平底土块，保留上方树根，避免灰色底座浮在草坪上。
         position={[14.1, -0.28, 9.3]}
-        rotation={2.18}
+        // 转开朝向山墙的粗枝，树根继续贴合现有池岸。
+        rotation={2.6}
         scale={2.05}
       />
       <PhotogramTree
