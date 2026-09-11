@@ -5,6 +5,7 @@
  * 天空 / 草地 / 天气共用；西式小院与四进合院分立。
  */
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useState } from "react";
 import {
   DEFAULT_WEATHER,
@@ -75,6 +76,12 @@ export default function Home() {
         <p className="pointer-events-none rounded-full bg-white/78 px-3 py-1.5 text-xs text-zinc-700 shadow ring-1 ring-black/5 backdrop-blur">
           拖动旋转，滚轮缩放
         </p>
+        <Link
+          href="/room"
+          className="rounded-full bg-white/80 px-3.5 py-1.5 text-xs font-medium text-zinc-600 shadow ring-1 ring-black/5 backdrop-blur hover:bg-white/90"
+        >
+          室内灯火
+        </Link>
       </div>
 
       <div
