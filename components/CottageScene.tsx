@@ -21,6 +21,7 @@ import { useWallTextures } from "@/hooks/useWallTextures";
 import { useRoofTextures } from "@/hooks/useRoofTextures";
 import { useWoodTextures } from "@/hooks/useWoodTextures";
 import { usePathTextures } from "@/hooks/usePathTextures";
+import { useCottageDoor } from "@/hooks/useCottageDoor";
 import {
   applyRoofTilingBreaker,
   applyWallWeathering,
@@ -49,6 +50,7 @@ type CottageSceneProps = {
 
 /** 西式单栋小院（可与四进合院场景切换） */
 export function CottageScene({ stage }: CottageSceneProps) {
+  const { events } = useCottageDoor(stage);
   const wallTextures = useWallTextures();
   const roofTextures = useRoofTextures("cottage");
   const woodTextures = useWoodTextures();
@@ -136,7 +138,7 @@ export function CottageScene({ stage }: CottageSceneProps) {
   );
 
   return (
-    <>
+    <group {...events}>
       {/* 不再画外露地基白条；墙体贴地 */}
       {layers.walls ? (
         <mesh geometry={layers.walls} castShadow receiveShadow>
@@ -193,6 +195,6 @@ export function CottageScene({ stage }: CottageSceneProps) {
           {stepMat}
         </mesh>
       ) : null}
-    </>
+    </group>
   );
 }

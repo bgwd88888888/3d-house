@@ -7,6 +7,8 @@ import { useTexture } from "@react-three/drei";
 import { useLayoutEffect } from "react";
 import * as THREE from "three";
 import { RoomSofa } from "@/components/RoomSofa";
+import { RoomTables } from "@/components/RoomTables";
+import { RoomDoor } from "@/components/RoomDoor";
 import { useWallTextures } from "@/hooks/useWallTextures";
 import { useWoodTextures } from "@/hooks/useWoodTextures";
 import { useRoomGeometry } from "@/hooks/useRoomGeometry";
@@ -118,6 +120,8 @@ export function RoomScene() {
         </mesh>
       ) : null}
       <RoomSofa />
+      <RoomTables />
+      <RoomDoor />
       {layers.rug ? (
         <mesh geometry={layers.rug}>
           <meshStandardMaterial

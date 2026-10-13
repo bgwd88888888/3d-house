@@ -132,8 +132,13 @@ function makeSphere(
 
 function makeWindowWall(): THREE.BufferGeometry {
   const hw = ROOM.innerWidth * 0.5;
+  const { x, width, height } = ROOM.door;
   const outline = new THREE.Shape();
   outline.moveTo(-hw, 0);
+  outline.lineTo(x - width * 0.5, 0);
+  outline.lineTo(x - width * 0.5, height);
+  outline.lineTo(x + width * 0.5, height);
+  outline.lineTo(x + width * 0.5, 0);
   outline.lineTo(hw, 0);
   outline.lineTo(hw, ROOM.innerHeight);
   outline.lineTo(-hw, ROOM.innerHeight);
@@ -249,6 +254,8 @@ function makeMillwork(): THREE.BufferGeometry[] {
   const halfW = w * 0.5;
   const halfD = d * 0.5;
   const parts: THREE.BufferGeometry[] = [];
+  const doorLeft = ROOM.door.x - ROOM.door.width * 0.5;
+  const doorRight = ROOM.door.x + ROOM.door.width * 0.5;
 
   const base = [
     { t: 0.042, h: 0.11, inset: 0 },
@@ -258,7 +265,9 @@ function makeMillwork(): THREE.BufferGeometry[] {
   for (const step of base) {
     const y = baseY + step.h * 0.5;
     parts.push(
-      makeBox(w, step.h, step.t, [0, y, halfD - step.inset - step.t * 0.5], WOOD_TILE),
+      ...([[-halfW, doorLeft], [doorRight, halfW]] as const).map(([from, to]) =>
+        makeBox(to - from, step.h, step.t, [(from + to) * 0.5, y, halfD - step.inset - step.t * 0.5], WOOD_TILE),
+      ),
       makeBox(w, step.h, step.t, [0, y, -halfD + step.inset + step.t * 0.5], WOOD_TILE),
       makeBox(step.t, step.h, d - step.inset * 2, [-halfW + step.inset + step.t * 0.5, y, 0], WOOD_TILE),
       makeBox(step.t, step.h, d - step.inset * 2, [halfW - step.inset - step.t * 0.5, y, 0], WOOD_TILE),
@@ -300,10 +309,10 @@ function makeMillwork(): THREE.BufferGeometry[] {
   }
 
   parts.push(
-    ...makePanelRun("z", halfW, -halfD + 0.1, halfD - 0.1, 6, -1),
-    ...makePanelRun("z", -halfW, -halfD + 0.1, halfD - 0.1, 6, 1),
-    ...makePanelRun("x", -halfD, -halfW + 0.1, -1.02, 3, 1),
-    ...makePanelRun("x", -halfD, 1.02, halfW - 0.1, 3, 1),
+    ...makePanelRun("z", halfW, -halfD + 0.1, halfD - 0.1, 9, -1),
+    ...makePanelRun("z", -halfW, -halfD + 0.1, halfD - 0.1, 9, 1),
+    ...makePanelRun("x", -halfD, -halfW + 0.1, -1.02, 5, 1),
+    ...makePanelRun("x", -halfD, 1.02, halfW - 0.1, 5, 1),
   );
   return parts;
 }
@@ -331,43 +340,6 @@ function makeFireplaceWood(): THREE.BufferGeometry[] {
     makeBox(1.16, 0.08, 0.04, [0, 2.81, -halfD + 0.03], WOOD_TILE),
     makeBox(1.16, 0.08, 0.04, [0, 2.03, -halfD + 0.03], WOOD_TILE),
   ];
-}
-
-function makeTables(): THREE.BufferGeometry[] {
-  const c = ROOM.console;
-  const k = ROOM.coffee;
-  const parts: THREE.BufferGeometry[] = [];
-  const addTable = (
-    width: number,
-    depth: number,
-    height: number,
-    z: number,
-    topT: number,
-  ) => {
-    const topY = height - topT * 0.5;
-    const apronH = 0.045;
-    const legTop = 0.042;
-    const legBot = 0.028;
-    const insetX = width * 0.5 - 0.055;
-    const insetZ = depth * 0.5 - 0.05;
-    parts.push(
-      makeBox(width, topT, depth, [0, topY, z], WOOD_TILE),
-      makeBox(width - 0.06, apronH, depth - 0.06, [0, height - topT - apronH * 0.5, z], WOOD_TILE),
-    );
-    for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        const lx = sx * insetX;
-        const lz = z + sz * insetZ;
-        const legH = height - topT - apronH;
-        parts.push(
-          makeCylinder(legTop * 0.5, legBot * 0.5, legH, 8, [lx, legH * 0.5, lz], WOOD_TILE),
-        );
-      }
-    }
-  };
-  addTable(c.width, c.depth, c.height, c.z, 0.032);
-  addTable(k.width, k.depth, k.height, k.z, 0.028);
-  return parts;
 }
 
 function makeChandelier(): { brass: THREE.BufferGeometry[]; diffusers: THREE.BufferGeometry[] } {
@@ -477,28 +449,9 @@ function makeVases(): THREE.BufferGeometry[] {
     [0.02, 0.26],
     [0, 0.26],
   ].map(([radius, y]) => new THREE.Vector2(radius, y));
-  const wide = [
-    [0, 0],
-    [0.048, 0],
-    [0.055, 0.02],
-    [0.042, 0.1],
-    [0.03, 0.13],
-    [0.036, 0.17],
-    [0.022, 0.19],
-    [0, 0.19],
-  ].map(([radius, y]) => new THREE.Vector2(radius, y));
   const mantel = new THREE.LatheGeometry(tall, 20);
   mantel.translate(0, ROOM.fireplace.openingH + 0.47, -ROOM.innerDepth * 0.5 + 0.22);
-  const consoleA = new THREE.LatheGeometry(wide, 20);
-  consoleA.translate(1.48, ROOM.console.height, ROOM.console.z);
-  const consoleB = new THREE.LatheGeometry(tall, 18);
-  consoleB.scale(0.78, 0.78, 0.78);
-  consoleB.translate(-1.46, ROOM.console.height, ROOM.console.z);
-  return [
-    tintDetailGeometry(mantel, "#9a6a4e"),
-    tintDetailGeometry(consoleA, "#8a5a44"),
-    tintDetailGeometry(consoleB, "#7e5340"),
-  ];
+  return [tintDetailGeometry(mantel, "#9a6a4e")];
 }
 
 function makeTelevision(): {
@@ -635,7 +588,6 @@ export function buildRoomLayers(): RoomLayers {
       ...makeWindowFrames(),
       ...makeMillwork(),
       ...makeFireplaceWood(),
-      ...makeTables(),
       ...painting.frame,
     ]),
     glass: mergeGeometryParts(glassParts),

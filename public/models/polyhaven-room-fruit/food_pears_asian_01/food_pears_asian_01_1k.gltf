@@ -1,0 +1,523 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v3.3.32",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "food_pears_asian_01_b",
+      "rotation": [
+        -0.842380166053772,
+        0.18991661071777344,
+        -0.048462171107530594,
+        0.5019747614860535
+      ],
+      "translation": [
+        -0.007889356464147568,
+        0.019191745668649673,
+        -0.04539347067475319
+      ]
+    },
+    {
+      "mesh": 1,
+      "name": "food_pears_asian_01_c",
+      "rotation": [
+        -0.11649230122566223,
+        -0.27448874711990356,
+        -0.07143101096153259,
+        0.9518314599990845
+      ],
+      "translation": [
+        -0.02694537863135338,
+        0.021838538348674774,
+        0.030072232708334923
+      ]
+    },
+    {
+      "mesh": 2,
+      "name": "food_pears_asian_01_e",
+      "rotation": [
+        -0.056855496019124985,
+        0.01233257632702589,
+        -0.0008168760687112808,
+        0.9983059167861938
+      ],
+      "translation": [
+        0.014745596796274185,
+        0.022104648873209953,
+        0.044261183589696884
+      ]
+    },
+    {
+      "mesh": 3,
+      "name": "food_pears_asian_01_d",
+      "rotation": [
+        0.2924463450908661,
+        0.06678804755210876,
+        -0.7611380815505981,
+        0.5750507116317749
+      ],
+      "translation": [
+        0.01846534013748169,
+        0.021019021049141884,
+        0.0005398173816502094
+      ]
+    },
+    {
+      "mesh": 4,
+      "name": "food_pears_asian_01_a",
+      "rotation": [
+        0.6079877614974976,
+        -0.3242475688457489,
+        0.15716487169265747,
+        0.7074698805809021
+      ],
+      "translation": [
+        -0.041828520596027374,
+        0.019822757691144943,
+        -0.010986006818711758
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "food_pears_asian_01",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0,
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "food_pears_asian_01b",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "food_pears_asian_01c",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "food_pears_asian_01e",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 8,
+            "NORMAL": 9,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "food_pears_asian_01d",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 12,
+            "NORMAL": 13,
+            "TEXCOORD_0": 14
+          },
+          "indices": 15,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "food_pears_asian_01a",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 16,
+            "NORMAL": 17,
+            "TEXCOORD_0": 18
+          },
+          "indices": 19,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "food_pears_asian_01_nor_gl",
+      "uri": "textures/food_pears_asian_01_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "food_pears_asian_01_diff",
+      "uri": "textures/food_pears_asian_01_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "food_pears_asian_01_rough",
+      "uri": "textures/food_pears_asian_01_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1487,
+      "max": [
+        0.02270106039941311,
+        0.05897984653711319,
+        0.020718785002827644
+      ],
+      "min": [
+        -0.022466640919446945,
+        -0.02729346975684166,
+        -0.021539589390158653
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1487,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1487,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 8004,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 1418,
+      "max": [
+        0.021689392626285553,
+        0.05024924874305725,
+        0.02205382101237774
+      ],
+      "min": [
+        -0.022781487554311752,
+        -0.023962587118148804,
+        -0.02221706323325634
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 1418,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 1418,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 7620,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 1316,
+      "max": [
+        0.021604076027870178,
+        0.04642541706562042,
+        0.021669229492545128
+      ],
+      "min": [
+        -0.021887490525841713,
+        -0.022916361689567566,
+        -0.021692315116524696
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 1316,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 1316,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5123,
+      "count": 7044,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 1349,
+      "max": [
+        0.02256857044994831,
+        0.03720325976610184,
+        0.021336613222956657
+      ],
+      "min": [
+        -0.02248075045645237,
+        -0.02218894474208355,
+        -0.023191969841718674
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 1349,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 1349,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5123,
+      "count": 7236,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 16,
+      "componentType": 5126,
+      "count": 1452,
+      "max": [
+        0.02174193598330021,
+        0.04084496572613716,
+        0.030321242287755013
+      ],
+      "min": [
+        -0.021459830924868584,
+        -0.02456757426261902,
+        -0.02369794249534607
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 17,
+      "componentType": 5126,
+      "count": 1452,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 18,
+      "componentType": 5126,
+      "count": 1452,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 19,
+      "componentType": 5123,
+      "count": 7812,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 17844,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 17844,
+      "byteOffset": 17844,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 11896,
+      "byteOffset": 35688,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16008,
+      "byteOffset": 47584,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 17016,
+      "byteOffset": 63592,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 17016,
+      "byteOffset": 80608,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 11344,
+      "byteOffset": 97624,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15240,
+      "byteOffset": 108968,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15792,
+      "byteOffset": 124208,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15792,
+      "byteOffset": 140000,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 10528,
+      "byteOffset": 155792,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 14088,
+      "byteOffset": 166320,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16188,
+      "byteOffset": 180408,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16188,
+      "byteOffset": 196596,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 10792,
+      "byteOffset": 212784,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 14472,
+      "byteOffset": 223576,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 17424,
+      "byteOffset": 238048,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 17424,
+      "byteOffset": 255472,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 11616,
+      "byteOffset": 272896,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15624,
+      "byteOffset": 284512,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 300136,
+      "uri": "food_pears_asian_01.bin"
+    }
+  ]
+}

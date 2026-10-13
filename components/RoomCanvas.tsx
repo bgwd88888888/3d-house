@@ -52,10 +52,10 @@ function RoomLights() {
         position={[0.4, 2.6, windowZ]}
       />
       <pointLight
-        position={[3.05, 1.48, 0.35]}
+        position={[4.9, 1.48, 0.35]}
         color="#e2b894"
         intensity={5.5}
-        distance={6.5}
+        distance={8.5}
         decay={2}
       />
     </>
@@ -200,7 +200,7 @@ export function RoomCanvas({
         minPolarAngle={0.18}
         maxPolarAngle={Math.PI / 2 - 0.08}
         minDistance={0.7}
-        maxDistance={7.2}
+        maxDistance={10.2}
         target={DEFAULT_TARGET}
       />
     </Canvas>
