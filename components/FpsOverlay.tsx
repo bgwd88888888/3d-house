@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 
 const SAMPLE_MS = 400;
 
-export function FpsOverlay() {
+export function FpsOverlay({ className = "pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-white/80 px-3 py-1.5 text-xs text-zinc-700 shadow ring-1 ring-black/5 backdrop-blur" }: { className?: string }) {
   const valueRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function FpsOverlay() {
 
   return (
     <div
-      className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-white/80 px-3 py-1.5 text-xs text-zinc-700 shadow ring-1 ring-black/5 backdrop-blur"
+      className={className}
       aria-live="off"
     >
       <span
