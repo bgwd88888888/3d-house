@@ -18,7 +18,7 @@ export const INITIAL_KUNGFU_QUEUE: KungfuQueueState = {
 /** 每个指令有独立序号，重置后到达的旧完成事件不能消耗新队列。 */
 export function kungfuQueueReducer(state: KungfuQueueState, event: QueueEvent): KungfuQueueState {
   if (event.type === "reset") {
-    return { command: { motion: "idle", sequence: state.command.sequence + 1 }, pending: [] };
+    return { command: { motion: "idle", sequence: state.command.sequence + 1, reset: true }, pending: [] };
   }
   if (event.type === "enqueue") {
     if (!event.actions.length) return state;

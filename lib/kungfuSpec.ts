@@ -9,7 +9,14 @@ export const KUNGFU_ACTIONS = [
 
 export type KungfuAction = (typeof KUNGFU_ACTIONS)[number]["id"];
 export type KungfuMotion = KungfuAction | "idle";
-export type KungfuCommand = { motion: KungfuMotion; sequence: number };
+export type KungfuCommand = { motion: KungfuMotion; sequence: number; reset?: true };
+
+export const KUNGFU_MODES = [
+  { id: "solo", label: "单人演武" },
+  { id: "sparring", label: "双人陪练" },
+] as const;
+
+export type KungfuMode = (typeof KUNGFU_MODES)[number]["id"];
 
 export const KUNGFU_COMBOS = [
   { label: "拳腿连击", actions: ["jab", "hook", "kick"] },

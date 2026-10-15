@@ -1,19 +1,22 @@
 "use client";
 
-import { KUNGFU_ACTIONS, KUNGFU_SPEEDS, type KungfuAction, type KungfuMotion } from "@/lib/kungfuSpec";
+import { KUNGFU_ACTIONS, KUNGFU_SPEEDS, type KungfuAction, type KungfuMode, type KungfuMotion } from "@/lib/kungfuSpec";
 import { KungfuComboControls } from "./KungfuComboControls";
 
 type KungfuControlsProps = {
   ready: boolean;
+  mode: KungfuMode;
   activeMotion: KungfuMotion;
   speed: number;
   pending: readonly KungfuAction[];
   onPlay: (motion: KungfuMotion) => void;
   onCombo: (actions: readonly KungfuAction[]) => void;
   onSpeedChange: (speed: number) => void;
+  soundEnabled: boolean;
+  onToggleSound: () => void;
 };
 
-export function KungfuControls({ ready, activeMotion, speed, pending, onPlay, onCombo, onSpeedChange }: KungfuControlsProps) {
+export function KungfuControls({ ready, mode, activeMotion, speed, pending, onPlay, onCombo, onSpeedChange, soundEnabled, onToggleSound }: KungfuControlsProps) {
   return (
     <section className="relative z-10 mx-auto w-full max-w-5xl px-4 pb-5 sm:px-8 sm:pb-7" aria-label="动作控制">
       <div className="rounded-2xl border border-white/10 bg-[#111317]/95 p-3 shadow-2xl sm:p-4">
@@ -46,7 +49,12 @@ export function KungfuControls({ ready, activeMotion, speed, pending, onPlay, on
         </div>
         <KungfuComboControls ready={ready} activeMotion={activeMotion} pending={pending} onCombo={onCombo} />
         <div className="mt-2 flex items-center justify-between gap-3 px-1">
-          <p className="text-[10px] text-zinc-600 sm:text-xs">拖动旋转视角 · 滚轮缩放</p>
+          <div className="flex items-center gap-3">
+            <p className="text-[10px] text-zinc-600 sm:text-xs">拖动旋转视角 · 滚轮缩放</p>
+            {mode === "sparring" ? <button type="button" aria-pressed={soundEnabled} onClick={onToggleSound} className="text-[10px] text-zinc-400 transition hover:text-white" aria-label="打击音效">
+              音效 {soundEnabled ? "开" : "关"}
+            </button> : null}
+          </div>
           <div className="flex items-center gap-1" role="group" aria-label="播放速度">
             <span className="mr-1 text-[10px] text-zinc-500">速度</span>
             {KUNGFU_SPEEDS.map((value) => (
