@@ -79,6 +79,7 @@ export default function Home() {
         {[
           { href: "/room", label: "室内灯火" },
           { href: "/kungfu", label: "功夫达人" },
+          { href: "/sword-flight", label: "御剑云游" },
         ].map((item) => (
           <Link
             key={item.href}
