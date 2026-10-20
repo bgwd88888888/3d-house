@@ -5,7 +5,7 @@ import { DoubleSide, PlaneGeometry } from "three";
 export function FlightRibbons({ running }: { running: RefObject<boolean> }) {
   const time = useRef(0);
   const geometry = useMemo(() => {
-    const ribbon = new PlaneGeometry(0.09, 1.8, 1, 16);
+    const ribbon = new PlaneGeometry(0.045, 1.5, 1, 16);
     ribbon.rotateX(Math.PI / 2);
     ribbon.translate(0, 0, 0.9);
     return ribbon;
@@ -24,7 +24,7 @@ export function FlightRibbons({ running }: { running: RefObject<boolean> }) {
     <group position={[0, 1.4, 0.21]}>
       {[-1, 1].map((side) => (
         <mesh key={side} geometry={geometry} position={[side * 0.14, 0, 0]} rotation={[0, side * 0.12, 0]} frustumCulled={false}>
-          <meshBasicMaterial color="#c9b27c" side={DoubleSide} />
+          <meshStandardMaterial color="#6f8077" roughness={1} side={DoubleSide} />
         </mesh>
       ))}
     </group>

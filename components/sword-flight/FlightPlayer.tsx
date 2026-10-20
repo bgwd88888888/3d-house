@@ -12,10 +12,10 @@ export function FlightPlayer(props: FlightRuntime) {
     <group ref={rider}>
       <SwordRider running={props.running} />
       <group ref={wake}>
-        {[-0.16, 0.16].map((x) => (
+        {[-0.13, 0.13].map((x) => (
           <mesh key={x} position={[x, -0.03, 4.6]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.11, 5.2, 5]} />
-            <meshBasicMaterial color="#e0ffff" transparent opacity={0.45} depthWrite={false} />
+            <coneGeometry args={[0.025, 5.2, 5]} />
+            <meshBasicMaterial color="#d7e6e6" transparent opacity={0.18} depthWrite={false} />
           </mesh>
         ))}
       </group>
