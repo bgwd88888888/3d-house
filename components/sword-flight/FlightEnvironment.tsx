@@ -3,19 +3,16 @@ import { FloatingIsland } from "./FloatingIsland";
 import { FlightClouds } from "./FlightClouds";
 import { FlightMountains } from "./FlightMountains";
 import { FlightSky } from "./FlightSky";
+import { FLIGHT_FOG_COLOR, FLIGHT_FOG_NEAR, FLIGHT_FOG_FAR } from "@/lib/flightAtmosphereSpec";
 
 export function FlightEnvironment() {
   return (
     <>
-      <color attach="background" args={["#c8dbdf"]} />
-      <fog attach="fog" args={["#c8dbdf", 155, 510]} />
-      <hemisphereLight args={["#e5f0f5", "#435d60", 1.5]} />
-      <directionalLight position={[-90, 140, -120]} color="#ffe5ba" intensity={2.1} />
+      <color attach="background" args={[FLIGHT_FOG_COLOR]} />
+      <fog attach="fog" args={[FLIGHT_FOG_COLOR, FLIGHT_FOG_NEAR, FLIGHT_FOG_FAR]} />
+      <hemisphereLight args={["#e5edf1", "#596563", 0.65]} />
+      <directionalLight position={[-90, 140, -120]} color="#fff0d5" intensity={1.7} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-140} shadow-camera-right={140} shadow-camera-top={140} shadow-camera-bottom={-140} shadow-camera-near={20} shadow-camera-far={350} shadow-normalBias={0.08} />
       <FlightSky />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -36, 0]}>
-        <planeGeometry args={[1800, 1800]} />
-        <meshBasicMaterial color="#b9d0d6" />
-      </mesh>
       <FlightClouds />
       {FLIGHT_ISLANDS.map((island) => <FloatingIsland key={island.name} island={island} />)}
       <FlightMountains />

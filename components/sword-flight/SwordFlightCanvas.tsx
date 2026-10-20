@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useEffect } from "react";
+import { memo, Suspense, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
+import { BakeShadows } from "@react-three/drei";
 import type { FlightRuntime } from "@/hooks/useSwordFlightFrame";
 import { FlightEnvironment } from "./FlightEnvironment";
 import { FlightGates } from "./FlightGates";
@@ -16,14 +17,17 @@ function FlightScene({ onReady, ...runtime }: Props) {
       <FlightEnvironment />
       <FlightGates flight={runtime.flight} />
       <FlightPlayer {...runtime} />
+      <BakeShadows />
     </>
   );
 }
 
 export const SwordFlightCanvas = memo(function SwordFlightCanvas(props: Props) {
   return (
-    <Canvas dpr={1} camera={{ fov: 58, near: 0.2, far: 650 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-      <FlightScene {...props} />
+    <Canvas shadows="soft" dpr={1} camera={{ fov: 58, near: 0.2, far: 1100 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
+      <Suspense fallback={null}>
+        <FlightScene {...props} />
+      </Suspense>
     </Canvas>
   );
 });
