@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f5f0" />
+    <meta name="description" content="看得见时间，抓得住刚好吗？点击开始，在 10.000 秒按停。一个充满弹性的 3D 风格反应小游戏。" />
+    <title>刚好 10 秒 · THE PERFECT TEN</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23fc693e'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='sans-serif' font-size='34' font-weight='900' fill='white'%3E10%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./js/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="刚好十秒首页"><span class="brand-mark">10<span>●</span></span><span>刚好十秒<span class="brand-caption">THE PERFECT TEN</span></span></a>
+      <div class="topbar-right"><a class="back-link" href="/" target="_top">← 返回庭院</a><span class="local-badge"><i></i> 本地挑战</span><button class="sound-toggle" id="sound-toggle" aria-pressed="false" aria-label="开启音效">音效 <span id="sound-label">关</span></button></div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div class="eyebrow"><span></span> A LITTLE GAME ABOUT TIMING</div>
+        <h1 id="page-title">差一点，<span>就刚好。</span></h1>
+        <p>看着时间流动，在 <strong>10.000</strong> 秒按下停止。<br class="mobile-break" /> 你的直觉，能有多准？</p>
+      </section>
+
+      <div class="game-layout">
+        <section class="playground" aria-label="十秒挑战游戏">
+          <div class="stage-top"><span class="challenge-label">CHALLENGE / 001</span><span class="target-badge">目标 <b>10.000</b> 秒</span></div>
+          <div class="stage" id="stage" data-state="idle">
+            <span class="decoration orb orb-peach" aria-hidden="true"></span>
+            <span class="decoration orb orb-purple" aria-hidden="true"></span>
+            <span class="decoration cube" aria-hidden="true"></span>
+            <span class="decoration donut" aria-hidden="true"></span>
+            <span class="star star-one" aria-hidden="true">✦</span><span class="star star-two" aria-hidden="true">✦</span>
+            <div class="timer-card">
+              <div class="timer-heading"><span class="status-dot"></span><span id="timer-status">准备好了吗？</span><span class="timer-icon" aria-hidden="true">◷</span></div>
+              <div class="timer-display" role="timer" aria-label="当前用时" aria-live="off"><span id="timer-seconds">00</span><span class="decimal">.</span><span id="timer-fraction">000</span><span class="timer-unit">SEC</span></div>
+              <div class="progress-track" aria-hidden="true"><div id="timer-progress"></div><span></span></div>
+              <div class="timer-scale"><span>0 秒</span><span>刚好 10 秒</span></div>
+            </div>
+            <div class="button-platform">
+              <div class="platform-shadow"></div><div class="platform-base"></div>
+              <button class="game-button" id="game-button" aria-label="开始计时"><span class="button-face"><span class="button-symbol" id="button-symbol" aria-hidden="true">▶</span><span id="button-label">开始挑战</span><span class="button-micro" id="button-micro">LET’S GO</span></span></button>
+            </div>
+            <div id="confetti" class="confetti" aria-hidden="true"></div>
+          </div>
+          <div class="stage-bottom"><span id="stage-hint">点击按钮，看看你的时间感</span><span class="keyboard-hint">或按 <kbd>Space</kbd></span></div>
+          <div class="result-panel" id="result-panel" aria-live="polite" aria-atomic="true">
+            <div class="result-copy"><span class="result-tag" id="result-tag">等你的第一场挑战</span><h2 id="result-title">10 秒，很短。刚好，很难。</h2><p id="result-description">随时开始，随时再来一次。</p></div>
+            <div class="score"><strong id="result-score">—</strong><span>/ 1000 分</span></div>
+          </div>
+          <div class="session-stats"><div><span>挑战次数</span><strong id="attempt-count">0</strong></div><div><span>你的最佳误差</span><strong id="personal-best">—<small> ms</small></strong></div><div><span>上次用时</span><strong id="last-time">—<small> s</small></strong></div></div>
+        </section>
+
+        <aside class="sidebar">
+          <section class="player-card" aria-labelledby="player-title"><span class="player-avatar" aria-hidden="true">☺</span><div><label id="player-title" for="player-name">这次，谁来挑战？</label><input id="player-name" type="text" maxlength="12" value="玩家一号" autocomplete="off" spellcheck="false" aria-describedby="name-help" /><span id="name-help">换个昵称，和身边的朋友比一比</span></div></section>
+          <section class="leaderboard" aria-labelledby="leaderboard-title">
+            <div class="leaderboard-header"><div><span class="section-kicker">THE CLOSEST CLUB</span><h2 id="leaderboard-title">毫秒俱乐部 <span aria-hidden="true">↗</span></h2></div><span class="trophy" aria-hidden="true">★</span></div>
+            <div class="leaderboard-columns"><span>排名 / 挑战者</span><span>误差</span></div>
+            <ol id="leaderboard-list"></ol>
+            <div class="empty-board" id="empty-board"><div class="empty-podium" aria-hidden="true"><i>2</i><i>1</i><i>3</i></div><strong>第一名，虚位以待。</strong><p>完成挑战，留下你的名字。</p></div>
+            <p class="board-footnote"><span></span> 每次成绩独立排名 · 当前设备前 10 名</p>
+          </section>
+          <section class="rules"><span class="rules-icon" aria-hidden="true">✳</span><div><h3>看得见，也不一定按得准。</h3><p>点击开始，再点停止。越接近 10 秒，得分越高。提前或超时，同样计算误差。</p><p class="precision-note">按毫秒记录 · 10.000 秒 = 1000 分</p></div></section>
+          <p class="storage-notice" id="storage-notice" role="status"></p>
+        </aside>
+      </div>
+      <footer><span>MADE FOR THAT <b>JUST RIGHT</b> MOMENT.</span><span>不急，再来一次。 <span class="footer-star">✳</span></span></footer>
+    </main>
+  </body>
+</html>
