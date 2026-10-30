@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "御剑云游 · Geo City 3D",
-  description: "御剑穿行于浮岛云海之间，轻量桌面飞行体验。",
+  description: "御剑自由探索十座云岛，收剑登台漫步，离开平台继续飞行。",
 };
 
 export default function SwordFlightLayout({ children }: { children: React.ReactNode }) {

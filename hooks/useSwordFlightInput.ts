@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 const FLIGHT_CODES = new Set([
   "KeyW", "KeyS", "KeyA", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-  "Space", "KeyC", "ShiftLeft", "ShiftRight", "KeyP", "Escape", "KeyR",
+  "Space", "KeyC", "KeyX", "KeyE", "ShiftLeft", "ShiftRight", "KeyP", "Escape", "KeyR",
 ]);
 
 export function useSwordFlightInput(onToggle: () => void, onPause: () => void, onReset: () => void) {
@@ -16,6 +16,7 @@ export function useSwordFlightInput(onToggle: () => void, onPause: () => void, o
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, button, a, [contenteditable=true]")) return;
       if (!FLIGHT_CODES.has(event.code) || event.metaKey || event.ctrlKey || event.altKey) return;
       event.preventDefault();
+      if (event.code === "KeyE" && event.repeat) return;
       pressed.add(event.code);
       if (event.repeat) return;
       if (event.code === "KeyP") onToggle();

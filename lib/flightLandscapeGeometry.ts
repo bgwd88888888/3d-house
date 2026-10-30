@@ -1,5 +1,5 @@
 import { BufferGeometry, Color, Float32BufferAttribute } from "three";
-import { islandEdge, islandSideRadius, islandTopHeight, pavilionRoofHeight, FLIGHT_PAVILION } from "./flightIslandShape";
+import { islandEdge, islandSideRadius, islandTopHeight, pavilionRoofHeight, FLIGHT_PAVILION, FLIGHT_ISLAND_SEGMENTS, FLIGHT_ISLAND_TOP_RINGS } from "./flightIslandShape";
 
 function surfaceGeometry(positions: number[], colors: number[], indices: number[], uvs?: number[]) {
   const geometry = new BufferGeometry();
@@ -16,8 +16,8 @@ export function createIslandGeometry(radius: number, height: number, top: boolea
   const colors: number[] = [];
   const indices: number[] = [];
   const uvs: number[] = [];
-  const segments = 64;
-  const rings = top ? 12 : 14;
+  const segments = FLIGHT_ISLAND_SEGMENTS;
+  const rings = top ? FLIGHT_ISLAND_TOP_RINGS : 14;
   const color = new Color();
   for (let ring = 0; ring <= rings; ring += 1) {
     const fraction = ring / rings;

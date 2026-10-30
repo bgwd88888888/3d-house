@@ -24,7 +24,7 @@ The scene batches 96 depth-sorted cloud billboards into one draw call, avoiding 
 limits. Mountain variants share five geometries and one PBR texture set.
 
 Pavilion wood, roofing and stone reuse the project's existing ambientCG Wood049,
-RoofingTiles007 and Concrete033 maps. One 2048 px directional shadow map is baked after
-the static scene loads (`BakeShadows`); the moving rider does not cast a frozen shadow.
+RoofingTiles007 and Concrete033 maps. One 2048 px directional shadow map follows the
+explorer and only refreshes after moving 12 m (`FlightSun`); the moving rider does not cast a frozen shadow.
 No per-frame shadow rendering, volumetric cloud tracing or cloth solver was added.
 The robe's small wind motion runs in its vertex shader.

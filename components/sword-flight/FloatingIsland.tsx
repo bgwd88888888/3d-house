@@ -1,13 +1,14 @@
-import { useEffect, useMemo } from "react";
-import type { FLIGHT_ISLANDS } from "@/lib/swordFlightSpec";
-import { islandTopHeight } from "@/lib/flightIslandShape";
+import { memo, useEffect, useMemo, type RefObject } from "react";
+import type { FlightIsland } from "@/lib/swordFlightSpec";
+import { FLIGHT_ISLAND_LAYOUTS } from "@/lib/flightIslandLayout";
 import { createIslandGeometry } from "@/lib/flightLandscapeGeometry";
 import { useFlightTextures } from "@/hooks/useFlightTextures";
 import { FlightPavilion } from "./FlightPavilion";
-import { FlightPine } from "./FlightPine";
-import { FlightRock } from "./FlightRock";
+import { FlightStonework } from "./FlightStonework";
+import { FlightIslandVegetation } from "./FlightIslandVegetation";
+import { FlightWaterfall } from "./FlightWaterfall";
 
-export function FloatingIsland({ island }: { island: (typeof FLIGHT_ISLANDS)[number] }) {
+export const FloatingIsland = memo(function FloatingIsland({ island, running }: { island: FlightIsland; running: RefObject<boolean> }) {
   const { position, radius, height } = island;
   const cliff = useFlightTextures("cliff");
   const ground = useFlightTextures("ground");
@@ -21,26 +22,16 @@ export function FloatingIsland({ island }: { island: (typeof FLIGHT_ISLANDS)[num
       <mesh geometry={geometries.top} receiveShadow>
         <meshStandardMaterial {...ground} vertexColors roughness={1} normalScale={[0.65, 0.65]} />
       </mesh>
-      <FlightPavilion />
-      {[0, 1, 2, 3].map((index) => {
-        const x = radius * (index === 3 ? -0.58 : 0.52);
-        const z = (index - 1) * 4.1;
-        return (
-          <group key={index} position={[x, islandTopHeight(x, z, radius), z]}>
-            <FlightPine scale={0.8 + index % 3 * 0.2} />
-          </group>
-        );
-      })}
-      {Array.from({ length: 7 }, (_, index) => {
-        const angle = index * 2.4;
-        const x = Math.cos(angle) * radius * 0.82;
-        const z = Math.sin(angle) * radius * 0.82;
-        return (
-          <group key={index} position={[x, islandTopHeight(x, z, radius) - 0.12, z]} scale={0.8 + index % 3 * 0.15} rotation={[0, angle, 0]}>
-            <FlightRock />
-          </group>
-        );
-      })}
+      <FlightStonework blocks={FLIGHT_ISLAND_LAYOUTS[island.id].blocks} />
+      {island.landmark === "pavilion" ? <FlightPavilion /> : null}
+      {island.landmark === "garden" ? (
+        <mesh position={[0, 2.94, -5]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[9.4, 7.4]} />
+          <meshStandardMaterial color="#608e85" roughness={0.18} metalness={0.35} transparent opacity={0.72} />
+        </mesh>
+      ) : null}
+      <FlightIslandVegetation islandId={island.id} />
+      {island.waterfall ? <FlightWaterfall island={island} running={running} /> : null}
     </group>
   );
-}
+});

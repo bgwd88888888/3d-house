@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createFlightState } from "@/lib/swordFlightSimulation";
+import { flightNavigation } from "@/lib/swordFlightNavigation";
 import { useSwordFlightInput } from "./useSwordFlightInput";
 
 export function useSwordFlight() {
@@ -23,7 +24,8 @@ export function useSwordFlight() {
     setActive(false);
   }, []);
   const reset = useCallback(() => {
-    flight.current = createFlightState();
+    const { visited, elapsed, distance } = flight.current;
+    flight.current = { ...createFlightState(), visited, elapsed, distance, notice: "已返回听风渡口，游历记录会保留。" };
     resetVersion.current += 1;
     setSnapshot(flight.current);
   }, []);
@@ -40,7 +42,8 @@ export function useSwordFlight() {
     return () => window.clearInterval(timer);
   }, []);
 
-  return { flight, running, resetVersion, keys, ready, active, snapshot, toggle, reset, onReady };
+  const navigation = flightNavigation(snapshot);
+  return { flight, running, resetVersion, keys, ready, active, snapshot, navigation, toggle, reset, onReady };
 }
 
 export type SwordFlightControls = ReturnType<typeof useSwordFlight>;
