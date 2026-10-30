@@ -1,25 +1,25 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useEffect } from "react";
-import * as THREE from "three";
 import { useKungfuCommand } from "@/hooks/useKungfuCommand";
 import { useKungfuFighter } from "@/hooks/useKungfuFighter";
-import { KUNGFU_MOTIONS_URL, type KungfuCommand } from "@/lib/kungfuSpec";
+import type { KungfuCommand } from "@/lib/kungfuSpec";
+import type { KungfuStyle } from "@/lib/kungfuStyles";
 
 export type KungfuSoloOptions = {
   modelUrl: string;
+  style: KungfuStyle;
   command: KungfuCommand;
   speed: number;
   onReady: () => void;
   onComplete: (sequence: number) => void;
 };
 
-export function useKungfuSolo({ modelUrl, command, speed, onReady, onComplete }: KungfuSoloOptions) {
+export function useKungfuSolo({ modelUrl, style, command, speed, onReady, onComplete }: KungfuSoloOptions) {
   const { scene } = useGLTF(modelUrl);
-  const json = useLoader(THREE.FileLoader, KUNGFU_MOTIONS_URL) as string;
-  const fighter = useKungfuFighter(scene, json);
+  const fighter = useKungfuFighter(scene, style);
   const finishCommand = useKungfuCommand(fighter, command, onComplete);
 
   useEffect(() => {

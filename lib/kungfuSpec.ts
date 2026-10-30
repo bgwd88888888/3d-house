@@ -25,4 +25,5 @@ export const KUNGFU_COMBOS = [
 ] as const satisfies readonly { label: string; actions: readonly KungfuAction[] }[];
 
 export const KUNGFU_MOTIONS_URL = "/models/kungfu/motions.json";
+export const KUNGFU_EXTRA_MOTIONS_URL = "/models/kungfu/extra-motions.json";
 export const KUNGFU_SPEEDS = [0.5, 1, 1.5, 2] as const;

@@ -24,3 +24,35 @@ Original animation service: [Adobe Mixamo](https://www.mixamo.com/). The source 
 | roundhouse | Roundhouse_Kick_2.fbx |
 
 Converted with the installed Three.js FBXLoader and AnimationClip.toJSON. Kept quaternion tracks and hip translation, removed `mixamorig` name prefixes, converted centimeters to meters, and removed the initial horizontal hip offset. The source rest hip height is 0.997919 m. Playback scales hip displacement to the target rig while retaining target bone lengths. No remote asset request is needed at runtime.
+
+## Additional fighters and styles
+
+The additional characters come from Adobe Mixamo, obtained from the existing [Linzhan collection](https://huggingface.co/datasets/Linzhan/Mixamo-Animations-Characters/tree/main/character_refined_glb). Original [Mixamo terms](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html) apply; the mirror does not grant a new license.
+
+| Local model | Character source | Display name | Style |
+| --- | --- | --- | --- |
+| `akai.glb` | `Akai_E_Espiritu.glb` | 玄衣武者 | Close-range punches, elbow strikes and snap kicks |
+| `ninja.glb` | `Ninja.glb` | 影武忍者 | Ninja stance, quick punches, side and spinning back kicks |
+| `kachujin.glb` | `Kachujin_G_Rosales.glb` | 赤衣女侠 | Capoeira stance, double kicks and a spinning kick |
+
+Run `blender -b -Y --python scripts/prepare-kungfu-characters.py -- SOURCE_DIRECTORY` with those three source GLBs. The conversion bakes the source root rotation/scale into the rig and meshes, removes bone namespaces, normalizes height to 1.70–1.74 m, and caps textures at 2048 px. Then run `node scripts/pack-flight-model-textures.mjs public/models/kungfu/akai.glb public/models/kungfu/ninja.glb public/models/kungfu/kachujin.glb` to reuse the existing embedded WebP packer. Mesh buffers, skin weights, and UVs are retained. The three runtime models total approximately 5.6 MB.
+
+`extra-motions.json` supplies shared animation overrides. Each fighter's motion mapping, labels, combos, contact windows and approach distances are defined in `lib/kungfuStyles.ts`. The original male moves remain available; Mai uses separate high and fast roundhouse kicks. Both fighter selections reset the queue and isolate stale loading callbacks.
+
+| Extra clip | Source FBX |
+| --- | --- |
+| highKick | Mma_Kick_2.fbx |
+| fastRoundhouse | Mma_Kick_4.fbx |
+| cross | Cross_Punch.fbx |
+| elbow | Elbow_Punch.fbx |
+| snapKick | Kicking_8.fbx |
+| sideKick | Side_Kick.fbx |
+| backKick | Kicking_2.fbx |
+| quickJab | Punching_3.fbx |
+| leadHook | Punching_4.fbx |
+| ninjaIdle | Ninja_Idle_2.fbx |
+| capoeiraIdle | Capoeira.fbx |
+| doubleKick | Kicking_3.fbx |
+| capoeiraSweep | Capoeira_2.fbx, frames 120–209 at 30 fps |
+
+These FBXs are from the same collection's `animation/` directory. Regenerate with `node scripts/prepare-kungfu-motions.mjs SOURCE_DIRECTORY`. Additional moves keep hip height but remove horizontal root travel; approach and return are controlled by each move's profile. Every clip has a deterministic, distinct UUID so the animation mixer cannot alias different moves. Capoeira grounding includes the hands for low poses. No new remote dependency or model request is required at runtime.

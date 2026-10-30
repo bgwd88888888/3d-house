@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { prepareKungfuClips } from "@/lib/kungfuAnimation";
 import { createKungfuAccessories } from "@/lib/kungfuAccessories";
 import { createKungfuReactionClips } from "@/lib/kungfuReactionClips";
 import type { KungfuFighterMotion } from "@/lib/kungfuSparring";
+import { KUNGFU_EXTRA_MOTIONS_URL, KUNGFU_MOTIONS_URL } from "@/lib/kungfuSpec";
+import type { KungfuStyle } from "@/lib/kungfuStyles";
 
 /** 独立克隆骨骼和材质，避免影响庭院中复用同一模型的人物。 */
-export function useKungfuFighter(scene: THREE.Object3D, json: string) {
+export function useKungfuFighter(scene: THREE.Object3D, style: KungfuStyle) {
+  const [json, extraJson] = useLoader(THREE.FileLoader, [KUNGFU_MOTIONS_URL, KUNGFU_EXTRA_MOTIONS_URL]) as string[];
   const positionRef = useRef<THREE.Group>(null);
   const groundRef = useRef<THREE.Group>(null);
   const activeRef = useRef<THREE.AnimationAction | null>(null);
@@ -48,7 +52,7 @@ export function useKungfuFighter(scene: THREE.Object3D, json: string) {
   const animation = useMemo(() => {
     const hips = character.getObjectByName("Hips");
     if (!hips) throw new Error("人物模型缺少 Hips 骨骼");
-    const clips = prepareKungfuClips(json, hips.position.y);
+    const clips = prepareKungfuClips(json, hips.position.y, extraJson, style.clips);
     clips.push(...createKungfuReactionClips(clips));
     const mixer = new THREE.AnimationMixer(character);
     const actions = Object.fromEntries(clips.map((clip) => {
@@ -58,9 +62,9 @@ export function useKungfuFighter(scene: THREE.Object3D, json: string) {
       action.clampWhenFinished = !repeat;
       return [clip.name, action];
     }));
-    const feet = ["LeftToeBase", "RightToeBase"].map((name) => character.getObjectByName(name));
+    const feet = ["LeftToeBase", "RightToeBase", ...(style.groundHands ? ["LeftHand", "RightHand"] : [])].map((name) => character.getObjectByName(name));
     return { mixer, actions, feet };
-  }, [character, json]);
+  }, [character, json, extraJson, style]);
 
   useEffect(() => () => {
     animation.mixer.stopAllAction();

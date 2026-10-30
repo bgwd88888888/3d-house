@@ -1,10 +1,12 @@
 "use client";
 
-import { KUNGFU_ACTIONS, KUNGFU_SPEEDS, type KungfuAction, type KungfuMode, type KungfuMotion } from "@/lib/kungfuSpec";
+import { KUNGFU_SPEEDS, type KungfuAction, type KungfuMode, type KungfuMotion } from "@/lib/kungfuSpec";
+import type { KungfuStyle } from "@/lib/kungfuStyles";
 import { KungfuComboControls } from "./KungfuComboControls";
 
 type KungfuControlsProps = {
   ready: boolean;
+  style: KungfuStyle;
   mode: KungfuMode;
   activeMotion: KungfuMotion;
   speed: number;
@@ -16,18 +18,18 @@ type KungfuControlsProps = {
   onToggleSound: () => void;
 };
 
-export function KungfuControls({ ready, mode, activeMotion, speed, pending, onPlay, onCombo, onSpeedChange, soundEnabled, onToggleSound }: KungfuControlsProps) {
+export function KungfuControls({ ready, style, mode, activeMotion, speed, pending, onPlay, onCombo, onSpeedChange, soundEnabled, onToggleSound }: KungfuControlsProps) {
   return (
     <section className="relative z-10 mx-auto w-full max-w-5xl px-4 pb-5 sm:px-8 sm:pb-7" aria-label="动作控制">
       <div className="rounded-2xl border border-white/10 bg-[#111317]/95 p-3 shadow-2xl sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-3 px-1">
-          <p className="text-[10px] font-medium tracking-[0.24em] text-zinc-500">选择招式 <span className="ml-2 hidden tracking-normal sm:inline">按 1—6 快速出招</span></p>
+          <p className="text-[10px] font-medium tracking-[0.24em] text-zinc-500">{style.label} · 选择招式 <span className="ml-2 hidden tracking-normal sm:inline">按 1—6 快速出招</span></p>
           <button type="button" disabled={!ready} onClick={() => onPlay("idle")} className="text-xs text-zinc-400 transition hover:text-white disabled:opacity-40">
             重置姿态 <span className="ml-1 text-[10px] text-zinc-600">ESC</span>
           </button>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {KUNGFU_ACTIONS.map((action) => {
+          {style.actions.map((action) => {
             const active = activeMotion === action.id;
             return (
               <button
@@ -47,7 +49,7 @@ export function KungfuControls({ ready, mode, activeMotion, speed, pending, onPl
             );
           })}
         </div>
-        <KungfuComboControls ready={ready} activeMotion={activeMotion} pending={pending} onCombo={onCombo} />
+        <KungfuComboControls ready={ready} combos={style.combos} actionLabels={style.actionLabels} activeMotion={activeMotion} pending={pending} onCombo={onCombo} />
         <div className="mt-2 flex items-center justify-between gap-3 px-1">
           <div className="flex items-center gap-3">
             <p className="text-[10px] text-zinc-600 sm:text-xs">拖动旋转视角 · 滚轮缩放</p>

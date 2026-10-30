@@ -5,8 +5,8 @@ import { KUNGFU_ACTIONS, type KungfuAction, type KungfuMode, type KungfuMotion }
 import { INITIAL_KUNGFU_QUEUE, kungfuQueueReducer } from "@/lib/kungfuQueue";
 import { useKungfuCharacter } from "@/hooks/useKungfuCharacter";
 import { useKungfuImpactSound } from "@/hooks/useKungfuImpactSound";
-import { KUNGFU_CHARACTERS } from "@/lib/kungfuCharacters";
 import type { KungfuImpact } from "@/lib/kungfuSparring";
+import { KUNGFU_STYLES } from "@/lib/kungfuStyles";
 
 export function useKungfuControls() {
   const [speed, setSpeed] = useState(1);
@@ -15,8 +15,9 @@ export function useKungfuControls() {
   const { enabled: soundEnabled, toggle: toggleSound, unlock, play: playImpactSound } = useKungfuImpactSound();
   const [{ command, pending }, dispatch] = useReducer(kungfuQueueReducer, INITIAL_KUNGFU_QUEUE);
   const reset = useCallback(() => dispatch({ type: "reset" }), []);
-  const { ready, character, characterKey, selectCharacter, reloadCharacter, onReady } = useKungfuCharacter(reset);
-  const opponent = KUNGFU_CHARACTERS[character.id === "male" ? 1 : 0];
+  const { ready, character, opponent, characterKey, selectCharacter, selectOpponent, reloadCharacter, onReady } = useKungfuCharacter(reset);
+  const style = KUNGFU_STYLES[character.style];
+  const opponentStyle = KUNGFU_STYLES[opponent.style];
   const selectMode = useCallback((next: KungfuMode) => {
     if (next === mode) return;
     reloadCharacter();
@@ -59,5 +60,5 @@ export function useKungfuControls() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [play]);
 
-  return { ready, character, opponent, characterKey, selectCharacter, mode, selectMode, speed, setSpeed, command, activeMotion: command.motion, pending, play, playCombo, onReady, onComplete, onImpact, feedback, soundEnabled, toggleSound };
+  return { ready, character, opponent, style, opponentStyle, characterKey, selectCharacter, selectOpponent, mode, selectMode, speed, setSpeed, command, activeMotion: command.motion, pending, play, playCombo, onReady, onComplete, onImpact, feedback, soundEnabled, toggleSound };
 }

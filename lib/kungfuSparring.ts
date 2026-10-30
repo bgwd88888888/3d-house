@@ -5,7 +5,7 @@ export type KungfuImpactKind = "block" | "hit";
 export type KungfuImpact = { sequence: number; kind: KungfuImpactKind | "miss" };
 export type KungfuFighterMotion = KungfuMotion | "guard" | "deflect" | "recoil";
 
-type SparringAttack = {
+export type SparringAttack = {
   bone: string;
   kind: KungfuImpactKind;
   start: number;
@@ -26,13 +26,13 @@ const ATTACKS: Partial<Record<KungfuAction, SparringAttack>> = {
   roundhouse: { bone: "RightFoot", kind: "hit", start: 0.27, peak: 0.433, end: 0.57, advance: 0, radius: 0.14 },
 };
 
-export function getKungfuAttack(motion: KungfuMotion) {
-  return motion === "idle" ? undefined : ATTACKS[motion];
+export function getKungfuAttack(motion: KungfuMotion, attacks: Partial<Record<KungfuAction, SparringAttack>> = {}) {
+  return motion === "idle" ? undefined : attacks[motion] ?? ATTACKS[motion];
 }
 
 /** 进身随出招推进，收势时回到原位，不在连招之间累计漂移。 */
-export function getKungfuAdvance(motion: KungfuMotion, progress: number) {
-  const attack = getKungfuAttack(motion);
+export function getKungfuAdvance(motion: KungfuMotion, progress: number, attacks?: Partial<Record<KungfuAction, SparringAttack>>) {
+  const attack = getKungfuAttack(motion, attacks);
   if (!attack) return 0;
   const amount = progress <= attack.peak
     ? THREE.MathUtils.smoothstep(progress, 0, attack.peak)

@@ -1,25 +1,25 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useKungfuFighter } from "@/hooks/useKungfuFighter";
 import { useKungfuCommand } from "@/hooks/useKungfuCommand";
 import type { KungfuSoloOptions } from "@/hooks/useKungfuSolo";
-import { KUNGFU_MOTIONS_URL } from "@/lib/kungfuSpec";
+import type { KungfuStyle } from "@/lib/kungfuStyles";
 import { getKungfuAdvance, getKungfuAttack, getKungfuContact, KUNGFU_SPARRING_DISTANCE, type KungfuImpact } from "@/lib/kungfuSparring";
 
 export type KungfuSparringOptions = KungfuSoloOptions & {
   opponentUrl: string;
+  opponentStyle: KungfuStyle;
   onImpact: (impact: KungfuImpact) => void;
 };
 
-export function useKungfuSparring({ modelUrl, opponentUrl, command, speed, onReady, onComplete, onImpact }: KungfuSparringOptions) {
+export function useKungfuSparring({ modelUrl, opponentUrl, style, opponentStyle, command, speed, onReady, onComplete, onImpact }: KungfuSparringOptions) {
   const models = useGLTF([modelUrl, opponentUrl]);
-  const json = useLoader(THREE.FileLoader, KUNGFU_MOTIONS_URL) as string;
-  const player = useKungfuFighter(models[0].scene, json);
-  const opponent = useKungfuFighter(models[1].scene, json);
+  const player = useKungfuFighter(models[0].scene, style);
+  const opponent = useKungfuFighter(models[1].scene, opponentStyle);
   const finishCommand = useKungfuCommand(player, command, onComplete);
   const round = useRef({ sequence: -1, resolved: false, pause: 0 });
   const contact = useMemo(() => ({
@@ -27,7 +27,7 @@ export function useKungfuSparring({ modelUrl, opponentUrl, command, speed, onRea
     current: new THREE.Vector3(),
     start: new THREE.Vector3(),
     end: new THREE.Vector3(),
-    limbs: new Map(["LeftHand", "RightHand", "RightFoot"].map((name) => [name, player.character.getObjectByName(name)])),
+    limbs: new Map(["LeftHand", "RightHand", "LeftFoot", "RightFoot", "LeftForeArm", "RightForeArm"].map((name) => [name, player.character.getObjectByName(name)])),
     targets: {
       block: [["LeftForeArm", "LeftHand", 0.1], ["RightForeArm", "RightHand", 0.1], ["LeftArm", "LeftForeArm", 0.09], ["RightArm", "RightForeArm", 0.09]],
       hit: [["Spine", "Spine2", 0.2], ["Spine2", "Head", 0.16]],
@@ -41,12 +41,12 @@ export function useKungfuSparring({ modelUrl, opponentUrl, command, speed, onRea
 
   useEffect(() => {
     round.current = { sequence: command.sequence, resolved: false, pause: 0 };
-    const attack = getKungfuAttack(command.motion);
+    const attack = getKungfuAttack(command.motion, style.attacks);
     const immediate = command.reset === true;
     opponent.play(attack?.kind === "block" || command.motion === "block" ? "guard" : "idle", immediate);
     player.setPosition(-KUNGFU_SPARRING_DISTANCE / 2);
     opponent.update(0);
-  }, [command, player, opponent]);
+  }, [command, player, opponent, style]);
 
   useFrame((_, delta) => {
     const current = round.current;
@@ -60,11 +60,11 @@ export function useKungfuSparring({ modelUrl, opponentUrl, command, speed, onRea
     if (!action) return;
     const duration = action.getClip().duration;
     const previousProgress = action.time / duration;
-    const attack = getKungfuAttack(command.motion);
+    const attack = getKungfuAttack(command.motion, style.attacks);
     const limb = attack ? contact.limbs.get(attack.bone) : undefined;
     limb?.getWorldPosition(contact.previous);
     const nextProgress = command.motion === "idle" ? 0 : Math.min((action.time + elapsed) / duration, 1);
-    player.setPosition(-KUNGFU_SPARRING_DISTANCE / 2 + getKungfuAdvance(command.motion, nextProgress));
+    player.setPosition(-KUNGFU_SPARRING_DISTANCE / 2 + getKungfuAdvance(command.motion, nextProgress, style.attacks));
     player.update(elapsed);
     opponent.update(elapsed);
     const progress = action.time / duration;
