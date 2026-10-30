@@ -8,7 +8,6 @@ import { NoColorSpace, RepeatWrapping, SRGBColorSpace } from "three";
 const MATERIALS = {
   cliff: "rock_face_03",
   ground: "rocky_terrain_02",
-  cloth: "rough_linen",
   mountain: "aerial_rocks_01",
 } as const;
 

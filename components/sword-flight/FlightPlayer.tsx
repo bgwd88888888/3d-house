@@ -10,7 +10,7 @@ export function FlightPlayer(props: FlightRuntime) {
 
   return (
     <group ref={rider}>
-      <SwordRider running={props.running} />
+      <SwordRider running={props.running} flight={props.flight} />
       <group ref={wake}>
         {[-0.13, 0.13].map((x) => (
           <mesh key={x} position={[x, -0.03, 4.6]} rotation={[Math.PI / 2, 0, 0]}>

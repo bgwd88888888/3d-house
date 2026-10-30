@@ -7,7 +7,6 @@ import { Mesh } from "three";
 const MODELS = {
   pine: "/models/sword-flight/pine.glb",
   rock: "/models/sword-flight/moss-rock.glb",
-  rider: "/models/sword-flight/rider-anatomy.glb",
 } as const;
 
 export function useFlightModel(kind: keyof typeof MODELS) {
@@ -16,12 +15,12 @@ export function useFlightModel(kind: keyof typeof MODELS) {
   return useMemo(() => {
     const model = scene.clone(true);
     model.traverse((object) => {
-      if (object instanceof Mesh && kind !== "rider") {
+      if (object instanceof Mesh) {
         object.castShadow = object.receiveShadow = true;
       }
     });
     return model;
-  }, [scene, kind]);
+  }, [scene]);
 }
 
 for (const url of Object.values(MODELS)) useGLTF.preload(url);

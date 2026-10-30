@@ -7,7 +7,7 @@ Downloaded 2026-10-20. Files are hosted locally with the scene.
 | --- | --- | --- |
 | `rock_face_03_*.webp` | [Rock Face 03](https://polyhaven.com/a/rock_face_03) | Cliff color, OpenGL normal and roughness |
 | `rocky_terrain_02_*.webp` | [Rocky Terrain 02](https://polyhaven.com/a/rocky_terrain_02) | Island ground color, OpenGL normal and roughness |
-| `rough_linen_*.webp` | [Rough Linen](https://polyhaven.com/a/rough_linen) | Rider robe/sleeve color, OpenGL normal and roughness |
+| `rough_linen_*.webp` | [Rough Linen](https://polyhaven.com/a/rough_linen) | Original procedural-rider maps, retained as source assets; the skinned fairy uses its embedded cloth maps |
 | `aerial_rocks_01_*.webp` | [Aerial Rocks 01](https://polyhaven.com/a/aerial_rocks_01) | Large-scale mountain rock color, OpenGL normal and roughness |
 | `sky.hdr` | [Kloppenheim 06 (Pure Sky)](https://polyhaven.com/a/kloppenheim_06_puresky) | Sky background and static image-based lighting |
 
@@ -27,4 +27,4 @@ Pavilion wood, roofing and stone reuse the project's existing ambientCG Wood049,
 RoofingTiles007 and Concrete033 maps. One 2048 px directional shadow map follows the
 explorer and only refreshes after moving 12 m (`FlightSun`); the moving rider does not cast a frozen shadow.
 No per-frame shadow rendering, volumetric cloud tracing or cloth solver was added.
-The robe's small wind motion runs in its vertex shader.
+The fairy uses bounded skeletal motion for the skirt, hair and ribbons.

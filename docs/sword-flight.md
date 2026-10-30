@@ -17,6 +17,7 @@
 - `lib/flightIslandShape.ts` 和 `lib/flightMountainShape.ts` 提供与可见三角面一致的地面高度。
 - `lib/swordFlightSimulation.ts` 管理模式切换，移动、落地检测、地面查询、实体碰撞分别放在对应模块中。
 - 每帧移动保存在 ref，HUD 每 125 ms 更新。继续使用本地素材和 DPR 1；石构件、鸟群采用实例化，植被在 340 m 外隐藏，云保持 96 张合批面片。2048 px 阴影只在移动 12 m 后更新。
+- 人物采用完整蒙皮骨骼的柔和仙侠造型，保留面部、手指与原始衣料细节，搭配长裙和披帛。御剑、步行、倒走、停步和起落姿态平滑过渡；腿部使用双骨骼落脚计算，裙摆、头发与披帛跟随骨骼，不运行布料物理。素材来源和重建命令见 `public/models/sword-flight/README.md`。
 
 ## 离线检查
 
@@ -30,3 +31,13 @@ NODE_PATH="$PWD/node_modules" node "$flight_check_dir/scripts/check-sword-flight
 ```
 
 回归检查覆盖全部岛屿落地、台阶、亭内行走、前后离岛起飞、主动起飞、减速、无边界重置、屋顶阻挡、碰壁脱离，以及地形碰撞高度与渲染三角面的一致性。静态和离线检查不能证明浏览器画面或实际 FPS。
+
+人物骨骼离线检查（不加载图像或启动浏览器）：
+
+```sh
+rider_check_dir=$(mktemp -d /tmp/geo-rider-check.XXXXXX)
+./node_modules/.bin/tsc lib/flightRiderPose.ts lib/flightFairyRig.ts --outDir "$rider_check_dir" --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --skipLibCheck --strict --noEmit false --incremental false
+NODE_PATH="$PWD/node_modules" node scripts/check-flight-rider.mjs "$rider_check_dir"
+```
+
+检查实际 GLB 的蒙皮权重、全步态脚底高度、姿态数值、眨眼和暂停/过渡；离线模型预览与 CPU 检查不能替代浏览器画面和帧率实测。
